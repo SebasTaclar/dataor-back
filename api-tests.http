@@ -1,0 +1,257 @@
+# Test Azure Functions API Endpoints
+# All responses follow the standard format:
+# {
+#   "success": boolean,
+#   "message": string,
+#   "data": any,
+#   "errors": string[] (optional),
+#   "timestamp": string,
+#   "statusCode": number
+# }
+# 
+# ⚠️ IMPORTANTE: Los endpoints de USER CREATION requieren autenticación JWT
+# Para pruebas con autenticación, usar el archivo: api-tests-with-auth.http
+#
+# 🛒 NUEVO SISTEMA DE PAGOS (funcCreatePayment):
+# - Sistema modernizado basado en productos y carrito de compras
+# - Soporte para múltiples productos con cantidades y colores
+# - Integración exclusiva con Wompi (sin MercadoPago)
+# - Normalización con tabla OrderDetail para histórico de precios
+# - Respuesta incluye: purchaseId, paymentUrl (Wompi), totalAmount, items
+
+###
+# PUBLIC ENDPOINTS (No authentication required)
+###
+
+### Health Check - Database Connection Test
+GET http://localhost:7071/api/funcHealthDB
+
+### Login with Admin User - Success Response
+POST http://localhost:7071/api/funcLogin
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "admin123"
+}
+
+### Login with Regular User - Success Response
+POST http://localhost:7071/api/funcLogin
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "user123"
+}
+
+### Login with Invalid Credentials - Error Response
+POST http://localhost:7071/api/funcLogin
+Content-Type: application/json
+
+{
+  "email": "invalid@example.com",
+  "password": "invalid"
+}
+
+### Login with Missing Password - Validation Error Response
+POST http://localhost:7071/api/funcLogin
+Content-Type: application/json
+
+{
+  "email": "admin@example.com"
+}
+
+### Login with Empty Body - Validation Error Response
+POST http://localhost:7071/api/funcLogin
+Content-Type: application/json
+
+{}
+
+### Create Payment - Modern Product-Based System (Wompi)
+### Creates a purchase with multiple products and generates Wompi payment URL
+POST http://localhost:7071/api/v1/payment/create
+Content-Type: application/json
+
+{
+  "buyerEmail": "cliente@ejemplo.com",
+  "buyerName": "Juan Pérez",
+  "buyerIdentificationNumber": "12345678",
+  "buyerContactNumber": "+573001234567",
+  "shippingAddress": "Calle 123 #45-67, Bogotá",
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 2,
+      "selectedColor": "Azul"
+    },
+    {
+      "productId": 3,
+      "quantity": 1,
+      "selectedColor": "Rojo"
+    }
+  ]
+}
+
+### Create Payment - Minimal Required Fields
+POST http://localhost:7071/api/v1/payment/create
+Content-Type: application/json
+
+{
+  "buyerEmail": "test@ejemplo.com",
+  "buyerName": "Test User",
+  "buyerIdentificationNumber": "987654321",
+  "buyerContactNumber": "3001234567",
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 1
+    }
+  ]
+}
+
+### Create Payment - Invalid Email (Should fail with validation error)
+POST http://localhost:7071/api/v1/payment/create
+Content-Type: application/json
+
+{
+  "buyerEmail": "email-invalido",
+  "buyerName": "Test User",
+  "buyerIdentificationNumber": "987654321",
+  "buyerContactNumber": "3001234567",
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 1
+    }
+  ]
+}
+
+### Create Payment - Missing Required Fields (Should fail)
+POST http://localhost:7071/api/v1/payment/create
+Content-Type: application/json
+
+{
+  "buyerEmail": "test@ejemplo.com",
+  "items": []
+}
+
+### Create Payment - Invalid Product ID (Should fail)
+POST http://localhost:7071/api/v1/payment/create
+Content-Type: application/json
+
+{
+  "buyerEmail": "test@ejemplo.com",
+  "buyerName": "Test User",
+  "buyerIdentificationNumber": "987654321",
+  "buyerContactNumber": "3001234567",
+  "items": [
+    {
+      "productId": 999999,
+      "quantity": 1
+    }
+  ]
+}
+
+### Create Payment - Zero Quantity (Should fail)
+POST http://localhost:7071/api/v1/payment/create
+Content-Type: application/json
+
+{
+  "buyerEmail": "test@ejemplo.com",
+  "buyerName": "Test User",
+  "buyerIdentificationNumber": "987654321",
+  "buyerContactNumber": "3001234567",
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 0
+    }
+  ]
+}
+
+### 10. Reenviar email de compra exitosa (usar ID de compra existente)
+POST http://localhost:7071/api/v1/purchase/resend-email
+Content-Type: application/json
+
+{
+  "purchaseId": "1"
+}
+
+### 11. Reenviar email con purchaseId inválido (debe fallar)
+POST http://localhost:7071/api/v1/purchase/resend-email
+Content-Type: application/json
+
+{
+  "purchaseId": "999999"
+}
+
+### 12. Reenviar email sin purchaseId (debe fallar)
+POST http://localhost:7071/api/v1/purchase/resend-email
+Content-Type: application/json
+
+{}
+
+### 13. Reenviar email con compra en estado PENDING (debe fallar con 400)
+POST http://localhost:7071/api/v1/purchase/resend-email
+Content-Type: application/json
+
+{
+  "purchaseId": "2"
+}
+
+### 14. Actualizar email de compra
+PUT http://localhost:7071/api/v1/purchase/1/update
+Content-Type: application/json
+
+{
+  "buyerEmail": "nuevo-email@ejemplo.com"
+}
+
+### 15. Actualizar email y nombre de compra
+PATCH http://localhost:7071/api/v1/purchase/1/update
+Content-Type: application/json
+
+{
+  "buyerEmail": "email-corregido@ejemplo.com",
+  "buyerName": "Nombre Corregido"
+}
+
+### 16. Actualizar todos los campos de compra
+PUT http://localhost:7071/api/v1/purchase/1/update
+Content-Type: application/json
+
+{
+  "buyerEmail": "completo@ejemplo.com",
+  "buyerName": "Nombre Completo",
+  "buyerContactNumber": "+57 300 123 4567"
+}
+
+### 17. Actualizar compra con ID inválido (debe fallar con 404)
+PUT http://localhost:7071/api/v1/purchase/999999/update
+Content-Type: application/json
+
+{
+  "buyerEmail": "test@ejemplo.com"
+}
+
+### 18. Actualizar compra con email inválido (debe fallar con 400)
+PUT http://localhost:7071/api/v1/purchase/1/update
+Content-Type: application/json
+
+{
+  "buyerEmail": "email-invalido"
+}
+
+### 19. Actualizar compra sin datos (debe fallar con 400)
+PUT http://localhost:7071/api/v1/purchase/1/update
+Content-Type: application/json
+
+{}
+
+###
+# PROTECTED ENDPOINTS (Require JWT Authentication)
+# Use api-tests-with-auth.http for authenticated requests
+###
+
+# Note: funcCreateUser and funcCategories require authentication
+# Please use api-tests-with-auth.http for user creation and categories tests

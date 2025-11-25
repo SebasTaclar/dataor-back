@@ -1,0 +1,103 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-1.1.x", "debian-openssl-3.0.x", "linux-musl"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             Int      @id @default(autoincrement())
+  email          String   @unique
+  password       String
+  name           String
+  role           String
+  membershipPaid Boolean  @default(false) @map("membership_paid")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Purchase {
+  id                         Int           @id @default(autoincrement())
+  buyerEmail                String        @map("buyer_email")
+  buyerName                 String        @map("buyer_name")
+  buyerIdentificationNumber String        @map("buyer_identification_number")
+  buyerContactNumber        String        @map("buyer_contact_number") // Contact/phone number
+  shippingAddress           String?       @map("shipping_address") // Dirección de envío
+  
+  // Estados separados
+  status                    String        @default("PENDING") // Payment status: PENDING, APPROVED, CANCELLED, REJECTED, COMPLETED, FAILED
+  orderStatus               String        @default("PENDING") @map("order_status") // Order status: PENDING, CONFIRMED, PROCESSING, SHIPPED, DELIVERED, CANCELLED
+  
+  // Pagos
+  mercadopagoPaymentId      String?       @map("mercadopago_payment_id")
+  preferenceId              String        @map("preference_id")
+  externalReference         String        @map("external_reference")
+  amount                    Int           @default(15000) // Amount in COP (Colombian Pesos)
+  currency                  String        @default("COP")
+  paymentProvider           String?       @map("payment_provider") // MERCADOPAGO, WOMPI, etc.
+  wompiTransactionId        String?       @map("wompi_transaction_id") // ID de transacción de Wompi
+  
+  createdAt                 DateTime      @default(now()) @map("created_at")
+  updatedAt                 DateTime      @updatedAt @map("updated_at")
+
+  // Relación con order details
+  orderDetails              OrderDetail[]
+
+  @@map("purchases")
+}
+
+model OrderDetail {
+  id            Int     @id @default(autoincrement())
+  purchaseId    Int     @map("purchase_id")
+  productName   String  @map("product_name") // Nombre del producto (desnormalizado)
+  quantity      Int     @default(1)
+  unitPrice     Decimal @db.Decimal(10, 2) @map("unit_price") // Snapshot del precio al momento de compra
+  totalPrice    Decimal @db.Decimal(10, 2) @map("total_price") // quantity * unitPrice
+  selectedColor String? @map("selected_color")
+  
+  // Relaciones
+  purchase      Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  
+  @@map("order_details")
+}
+
+model Category {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  
+  // Relación con productos
+  products    Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id             Int      @id @default(autoincrement())
+  name           String
+  description    String
+  price          Decimal  @db.Decimal(10, 2)
+  originalPrice  Decimal? @db.Decimal(10, 2) @map("original_price")
+  images         String   // JSON array de URLs: ["url1", "url2", "url3"]
+  categoryId     Int      @map("category_id")
+  status         String   @default("available") // available, out-of-stock, coming-soon
+  colors         String?  // JSON array de colores: ["Titanio Natural", "Titanio Azul"]
+  isShowcase     Boolean  @default(false) @map("is_showcase")
+  showcaseImage  String?  @map("showcase_image")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relaciones
+  category     Category      @relation(fields: [categoryId], references: [id])
+
+  @@index([categoryId], map: "idx_products_category")
+  @@index([isShowcase], map: "idx_products_showcase")
+  @@map("products")
+}

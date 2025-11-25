@@ -1,0 +1,422 @@
+# 📌 POSTMAN EXAMPLES - Todos los Endpoints del Proyecto
+# Base URL - Cambiar según tu entorno
+@baseUrl = http://localhost:7071/api
+@token = 
+
+# ==========================================
+# 1️⃣ AUTHENTICATION & HEALTH
+# ==========================================
+
+### Health Check - Verificar conexión a BD
+GET {{baseUrl}}/funcHealthDB
+
+### Login - Admin User
+# @name loginAdmin
+POST {{baseUrl}}/funcLogin
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "admin123"
+}
+
+### Login - Regular User
+# @name loginUser
+POST {{baseUrl}}/funcLogin
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "user123"
+}
+
+# ==========================================
+# 2️⃣ USERS (Requiere JWT)
+# ==========================================
+
+### Create User
+POST {{baseUrl}}/funcCreateUser
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "email": "newuser@example.com",
+  "password": "newuser123",
+  "name": "New User",
+  "role": "user",
+  "membershipPaid": false
+}
+
+# ==========================================
+# 3️⃣ CATEGORIES (CRUD Unificado)
+# ==========================================
+
+### GET - Obtener todas las categorías
+GET {{baseUrl}}/funcCategories
+Authorization: Bearer {{token}}
+
+### GET - Obtener categoría por ID
+GET {{baseUrl}}/funcCategories?id=1
+Authorization: Bearer {{token}}
+
+### POST - Crear categoría
+POST {{baseUrl}}/funcCategories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "Electrónica",
+  "description": "Productos electrónicos en general"
+}
+
+### PATCH - Actualizar categoría
+PATCH {{baseUrl}}/funcCategories?id=1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "Electrónica Premium",
+  "description": "Productos electrónicos de alta gama"
+}
+
+### DELETE - Eliminar categoría
+DELETE {{baseUrl}}/funcCategories?id=1
+Authorization: Bearer {{token}}
+
+# ==========================================
+# 4️⃣ PRODUCTS (CRUD Unificado)
+# ==========================================
+
+### GET - Obtener todos los productos
+GET {{baseUrl}}/funcProducts?page=1&limit=10
+Authorization: Bearer {{token}}
+
+### GET - Obtener producto por ID
+GET {{baseUrl}}/funcProducts?id=1
+Authorization: Bearer {{token}}
+
+### POST - Crear producto
+POST {{baseUrl}}/funcProducts
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "iPhone 15",
+  "description": "Último modelo de Apple",
+  "price": 1200000,
+  "originalPrice": 1500000,
+  "images": ["https://example.com/iphone1.jpg", "https://example.com/iphone2.jpg"],
+  "categoryId": 1,
+  "status": "available",
+  "colors": ["Negro", "Blanco", "Azul"],
+  "isShowcase": true,
+  "showcaseImage": "https://example.com/showcase.jpg"
+}
+
+### PATCH - Actualizar producto
+PATCH {{baseUrl}}/funcProducts?id=1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "iPhone 15 Pro",
+  "price": 1400000,
+  "status": "available"
+}
+
+### DELETE - Eliminar producto
+DELETE {{baseUrl}}/funcProducts?id=1
+Authorization: Bearer {{token}}
+
+# ==========================================
+# 5️⃣ CLIENTS (CRUD Unificado)
+# ==========================================
+
+### GET - Listar todos los clientes (con paginación)
+GET {{baseUrl}}/clients?page=1&limit=10
+
+### GET - Buscar clientes por nombre o email
+GET {{baseUrl}}/clients?search=juan&page=1&limit=10
+
+### GET - Obtener cliente por ID
+GET {{baseUrl}}/clients/1
+
+### POST - Crear cliente (con información de facturación)
+POST {{baseUrl}}/clients
+Content-Type: application/json
+
+{
+  "name": "Juan García",
+  "email": "juan@example.com",
+  "phone": "+57 300 123 4567",
+  "country": "Colombia",
+  "companyName": "Tech Solutions",
+  "notes": "Cliente premium",
+  "monthlyAmount": 50000.00,
+  "paymentDayMonth": 15
+}
+
+### POST - Crear cliente (mínimos campos)
+POST {{baseUrl}}/clients
+Content-Type: application/json
+
+{
+  "name": "María López",
+  "email": "maria@example.com",
+  "phone": "+57 301 987 6543",
+  "country": "Colombia"
+}
+
+### PATCH - Actualizar cliente (incluyendo información de facturación)
+PATCH {{baseUrl}}/clients/1
+Content-Type: application/json
+
+{
+  "name": "Juan García Updated",
+  "phone": "+57 300 999 8888",
+  "companyName": "New Company",
+  "monthlyAmount": 75000.00,
+  "paymentDayMonth": 20
+}
+
+### DELETE - Eliminar cliente
+DELETE {{baseUrl}}/clients/1
+
+# ==========================================
+# 6️⃣ QUOTES (CRUD Unificado - Cotizaciones)
+# ==========================================
+
+### GET - Listar todas las cotizaciones (con paginación)
+GET {{baseUrl}}/quotes?page=1&limit=10
+
+### GET - Buscar cotizaciones por cliente o nombre
+GET {{baseUrl}}/quotes?search=juan&page=1&limit=10
+
+### GET - Obtener cotizaciones de un cliente específico
+GET {{baseUrl}}/quotes?clientId=1&page=1&limit=10
+
+### GET - Obtener cotización por ID
+GET {{baseUrl}}/quotes/1
+
+### POST - Crear cotización con servicios mensuales
+POST {{baseUrl}}/quotes
+Content-Type: application/json
+
+{
+  "clientId": 1,
+  "services": [
+    {
+      "name": "Software Empresarial",
+      "quantity": 1,
+      "billingType": "monthly",
+      "description": "Licencia de software empresarial con soporte",
+      "value": 500000
+    },
+    {
+      "name": "Implementación",
+      "quantity": 1,
+      "billingType": "onetime",
+      "description": "Implementación e instalación del sistema",
+      "value": 1000000
+    }
+  ]
+}
+
+### POST - Crear cotización con servicios anuales
+POST {{baseUrl}}/quotes
+Content-Type: application/json
+
+{
+  "clientId": 1,
+  "services": [
+    {
+      "name": "Software Empresarial - Anual",
+      "quantity": 1,
+      "billingType": "annual",
+      "description": "Licencia anual con todas las actualizaciones",
+      "value": 5000000
+    }
+  ]
+}
+
+### POST - Crear cotización mixta (múltiples servicios)
+POST {{baseUrl}}/quotes
+Content-Type: application/json
+
+{
+  "clientId": 2,
+  "services": [
+    {
+      "name": "CRM Cloud",
+      "quantity": 1,
+      "billingType": "monthly",
+      "description": "Sistema CRM mensual",
+      "value": 300000
+    },
+    {
+      "name": "Email Marketing",
+      "quantity": 2,
+      "billingType": "monthly",
+      "description": "Plataforma de email marketing por usuario",
+      "value": 50000
+    },
+    {
+      "name": "Consultoría Inicial",
+      "quantity": 10,
+      "billingType": "onetime",
+      "description": "Horas de consultoría inicial",
+      "value": 100000
+    }
+  ]
+}
+
+### PATCH - Actualizar cotización (cambiar servicios)
+PATCH {{baseUrl}}/quotes/1
+Content-Type: application/json
+
+{
+  "services": [
+    {
+      "name": "Software Empresarial Premium",
+      "quantity": 1,
+      "billingType": "monthly",
+      "description": "Versión premium con soporte 24/7",
+      "value": 750000
+    },
+    {
+      "name": "Backup Automático",
+      "quantity": 1,
+      "billingType": "monthly",
+      "description": "Servicio de backup automático diario",
+      "value": 100000
+    }
+  ]
+}
+
+### DELETE - Eliminar cotización
+DELETE {{baseUrl}}/quotes/1
+
+# ==========================================
+# 7️⃣ PAYMENTS & ORDERS
+# ==========================================
+
+### Create Payment - Sistema Wompi
+POST {{baseUrl}}/v1/payment/create
+Content-Type: application/json
+
+{
+  "buyerEmail": "cliente@ejemplo.com",
+  "buyerName": "Juan Pérez",
+  "buyerIdentificationNumber": "12345678",
+  "buyerContactNumber": "+573001234567",
+  "shippingAddress": "Calle 123 #45-67, Bogotá",
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 2,
+      "selectedColor": "Azul"
+    },
+    {
+      "productId": 3,
+      "quantity": 1,
+      "selectedColor": "Rojo"
+    }
+  ]
+}
+
+### Get Payment by ID
+GET {{baseUrl}}/funcGetPaymentById?id=1
+
+### Get All Payments (con paginación)
+GET {{baseUrl}}/funcGetPayments?page=1&limit=10
+
+### Get Order by ID
+GET {{baseUrl}}/funcGetOrderById?id=1
+
+### Get All Orders
+GET {{baseUrl}}/funcGetOrders?page=1&limit=10
+
+### Get Purchases
+GET {{baseUrl}}/funcGetPurchases?page=1&limit=10
+
+# ==========================================
+# 8️⃣ WEBHOOKS (Automáticos)
+# ==========================================
+
+### Webhook Wompi (Recibe confirmación de pago)
+POST {{baseUrl}}/funcWebhookWompi
+Content-Type: application/json
+
+{
+  "event": "transaction.completed",
+  "data": {
+    "transaction": {
+      "id": "txn_123456",
+      "reference": "ref_payment_123",
+      "status": "APPROVED",
+      "amount_in_cents": 50000
+    }
+  }
+}
+
+### Webhook MercadoPago (Si se implementa)
+POST {{baseUrl}}/funcWebhookMercadoPago
+Content-Type: application/json
+
+{
+  "id": "12345678",
+  "topic": "payment",
+  "resource": "/v1/payments/12345678"
+}
+
+# ==========================================
+# 9️⃣ UTILITIES
+# ==========================================
+
+### Resend Email
+POST {{baseUrl}}/funcResendEmail
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "userId": 1
+}
+
+### Cleanup Pending Purchases (Automático)
+POST {{baseUrl}}/funcCleanupPendingPurchases
+
+### Backup Timer (Automático)
+POST {{baseUrl}}/funcBackupTimer
+
+# ==========================================
+# 📝 NOTAS IMPORTANTES
+# ==========================================
+# 
+# 1. Endpoints protegidos (requieren JWT):
+#    - funcCreateUser
+#    - funcCategories (todas las operaciones)
+#    - funcProducts (todas las operaciones)
+#    - Incluir: Authorization: Bearer {{token}}
+#
+# 2. Endpoints públicos (sin JWT):
+#    - funcHealthDB
+#    - funcLogin
+#    - /clients (CRUD)
+#    - /quotes (CRUD)
+#    - v1/payment/create
+#    - funcGetPayments, funcGetOrders
+#    - Webhooks
+#
+# 3. Para obtener el token:
+#    - Ejecutar "Login - Admin User" o "Login - Regular User"
+#    - Copiar el token de la respuesta
+#    - Pegar en @token al inicio del archivo
+#
+# 4. Respuesta estándar de API:
+#    {
+#      "success": true/false,
+#      "data": {...},
+#      "message": "descripción",
+#      "timestamp": "ISO-8601",
+#      "statusCode": 200
+#    }

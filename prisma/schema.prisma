@@ -101,3 +101,36 @@ model Product {
   @@index([isShowcase], map: "idx_products_showcase")
   @@map("products")
 }
+
+model Client {
+  id              Int       @id @default(autoincrement())
+  name            String
+  email           String    @unique
+  phone           String
+  country         String
+  companyName     String?   @map("company_name")
+  notes           String?
+  monthlyAmount   Decimal?  @db.Decimal(10, 2) @map("monthly_amount") // Mensualidad (opcional)
+  paymentDayMonth Int?      @map("payment_day_month") // Día del mes para pagar (1-28, opcional)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relación con cotizaciones
+  quotes          Quote[]
+
+  @@index([email], map: "idx_clients_email")
+  @@map("clients")
+}
+
+model Quote {
+  id           Int       @id @default(autoincrement())
+  clientId     Int       @map("client_id")
+  client       Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  services     Json      // Array de servicios: [{name, quantity, billingType, description, value}]
+  totalAmount  Decimal   @db.Decimal(15, 2) @map("total_amount") // Suma total de todos los servicios
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@index([clientId], map: "idx_quotes_client_id")
+  @@map("quotes")
+}

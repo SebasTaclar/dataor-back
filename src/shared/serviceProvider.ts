@@ -5,16 +5,22 @@ import { ProductService } from '../application/services/ProductService';
 import { HealthService } from '../application/services/HealthService';
 import { PurchaseService } from '../application/services/PurchaseService';
 import { CleanupService } from '../application/services/CleanupService';
+import { ClientService } from '../application/services/ClientService';
+import { QuoteService } from '../application/services/QuoteService';
 import { MercadoPagoService } from '../infrastructure/services/MercadoPagoService';
 import { EmailService } from '../infrastructure/services/EmailService';
 import { UserPrismaAdapter } from '../infrastructure/DbAdapters/UserPrismaAdapter';
 import { CategoryPrismaAdapter } from '../infrastructure/DbAdapters/CategoryPrismaAdapter';
 import { ProductPrismaAdapter } from '../infrastructure/DbAdapters/ProductPrismaAdapter';
 import { OrderDetailPrismaAdapter } from '../infrastructure/DbAdapters/OrderDetailPrismaAdapter';
+import { ClientPrismaAdapter } from '../infrastructure/DbAdapters/ClientPrismaAdapter';
+import { QuotePrismaAdapter } from '../infrastructure/DbAdapters/QuotePrismaAdapter';
 import { IUserDataSource } from '../domain/interfaces/IUserDataSource';
 import { ICategoryDataSource } from '../domain/interfaces/ICategoryDataSource';
 import { IProductDataSource } from '../domain/interfaces/IProductDataSource';
 import { IOrderDetailDataSource } from '../domain/interfaces/IOrderDetailDataSource';
+import { IClientDataSource } from '../domain/interfaces/IClientDataSource';
+import { IQuoteDataSource } from '../domain/interfaces/IQuoteDataSource';
 import { getPrismaClient } from '../config/PrismaClient';
 
 /**
@@ -50,6 +56,20 @@ export class ServiceProvider {
    */
   static getOrderDetailDataSource(): IOrderDetailDataSource {
     return new OrderDetailPrismaAdapter();
+  }
+
+  /**
+   * Crea una instancia de ClientDataSource (actualmente PrismaAdapter)
+   */
+  static getClientDataSource(): IClientDataSource {
+    return new ClientPrismaAdapter();
+  }
+
+  /**
+   * Crea una instancia de QuoteDataSource (actualmente PrismaAdapter)
+   */
+  static getQuoteDataSource(): IQuoteDataSource {
+    return new QuotePrismaAdapter();
   }
 
   /**
@@ -102,6 +122,23 @@ export class ServiceProvider {
   }
 
   /**
+   * Crea una instancia de ClientService con sus dependencias inyectadas
+   */
+  static getClientService(logger: Logger): ClientService {
+    const clientDataSource = this.getClientDataSource();
+    return new ClientService(logger, clientDataSource);
+  }
+
+  /**
+   * Crea una instancia de QuoteService con sus dependencias inyectadas
+   */
+  static getQuoteService(logger: Logger): QuoteService {
+    const quoteDataSource = this.getQuoteDataSource();
+    const clientDataSource = this.getClientDataSource();
+    return new QuoteService(logger, quoteDataSource, clientDataSource);
+  }
+
+  /**
    * Crea una instancia de EmailService con sus dependencias inyectadas
    */
   static getEmailService(logger: Logger): EmailService {
@@ -149,6 +186,14 @@ export const getMercadoPagoService = (): MercadoPagoService => {
   return ServiceProvider.getMercadoPagoService();
 };
 
+export const getClientService = (logger: Logger): ClientService => {
+  return ServiceProvider.getClientService(logger);
+};
+
+export const getQuoteService = (logger: Logger): QuoteService => {
+  return ServiceProvider.getQuoteService(logger);
+};
+
 export const getUserDataSource = (): IUserDataSource => {
   return ServiceProvider.getUserDataSource();
 };
@@ -163,4 +208,12 @@ export const getProductDataSource = (): IProductDataSource => {
 
 export const getOrderDetailDataSource = (): IOrderDetailDataSource => {
   return ServiceProvider.getOrderDetailDataSource();
+};
+
+export const getClientDataSource = (): IClientDataSource => {
+  return ServiceProvider.getClientDataSource();
+};
+
+export const getQuoteDataSource = (): IQuoteDataSource => {
+  return ServiceProvider.getQuoteDataSource();
 };

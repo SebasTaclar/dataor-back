@@ -82,6 +82,9 @@ export class EmailService {
   private logger: Logger;
   private senderEmail: string;
   private readonly STORE_NAME = 'Apple Store Pro';
+  private static sendQueue: Promise<void> = Promise.resolve();
+  private static lastSendStartedAt = 0;
+  private static readonly DEFAULT_MIN_SEND_INTERVAL_MS = 6 * 60 * 1000;
 
   constructor(logger: Logger) {
     this.logger = logger;
@@ -102,55 +105,57 @@ export class EmailService {
   }
 
   async sendEmail(emailData: EmailData): Promise<void> {
-    try {
-      this.logger.logInfo('Sending email', {
-        toEmail: emailData.toEmail,
-        subject: emailData.subject,
-        attachmentCount: emailData.attachments?.length || 0,
-      });
-
-      const message: EmailMessageStructure = {
-        senderAddress: this.senderEmail,
-        content: {
+    return this.runWithSendThrottle(async () => {
+      try {
+        this.logger.logInfo('Sending email', {
+          toEmail: emailData.toEmail,
           subject: emailData.subject,
-          html: emailData.htmlContent,
-          plainText: emailData.textContent || this.stripHtml(emailData.htmlContent),
-        },
-        recipients: {
-          to: [
-            {
-              address: emailData.toEmail,
-              displayName: emailData.toName,
-            },
-          ],
-        },
-      };
+          attachmentCount: emailData.attachments?.length || 0,
+        });
 
-      // Agregar attachments si existen
-      if (emailData.attachments && emailData.attachments.length > 0) {
-        message.attachments = emailData.attachments.map((attachment) => ({
-          name: attachment.name,
-          contentType: attachment.contentType,
-          contentInBase64: attachment.contentInBase64,
-        }));
+        const message: EmailMessageStructure = {
+          senderAddress: this.senderEmail,
+          content: {
+            subject: emailData.subject,
+            html: emailData.htmlContent,
+            plainText: emailData.textContent || this.stripHtml(emailData.htmlContent),
+          },
+          recipients: {
+            to: [
+              {
+                address: emailData.toEmail,
+                displayName: emailData.toName,
+              },
+            ],
+          },
+        };
+
+        // Agregar attachments si existen
+        if (emailData.attachments && emailData.attachments.length > 0) {
+          message.attachments = emailData.attachments.map((attachment) => ({
+            name: attachment.name,
+            contentType: attachment.contentType,
+            contentInBase64: attachment.contentInBase64,
+          }));
+        }
+
+        const poller = await this.emailClient.beginSend(message);
+        const result = await poller.pollUntilDone();
+
+        this.logger.logInfo('Email sent successfully', {
+          toEmail: emailData.toEmail,
+          messageId: result.id,
+          status: result.status,
+          attachmentCount: emailData.attachments?.length || 0,
+        });
+      } catch (error) {
+        this.logger.logError('Error sending email', {
+          toEmail: emailData.toEmail,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+        throw error;
       }
-
-      const poller = await this.emailClient.beginSend(message);
-      const result = await poller.pollUntilDone();
-
-      this.logger.logInfo('Email sent successfully', {
-        toEmail: emailData.toEmail,
-        messageId: result.id,
-        status: result.status,
-        attachmentCount: emailData.attachments?.length || 0,
-      });
-    } catch (error) {
-      this.logger.logError('Error sending email', {
-        toEmail: emailData.toEmail,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-      throw error;
-    }
+    });
   }
 
   async sendPaymentConfirmationEmail(paymentData: PaymentEmailData): Promise<void> {
@@ -1305,6 +1310,63 @@ export class EmailService {
     }
 
     return color;
+  }
+
+  private async runWithSendThrottle<T>(operation: () => Promise<T>): Promise<T> {
+    const previousSend = EmailService.sendQueue;
+    let releaseQueue!: () => void;
+
+    EmailService.sendQueue = new Promise<void>((resolve) => {
+      releaseQueue = resolve;
+    });
+
+    await previousSend;
+
+    try {
+      const minIntervalMs = this.getMinSendIntervalMs();
+      const lastSendStartedAt = EmailService.lastSendStartedAt;
+
+      if (lastSendStartedAt > 0) {
+        const elapsedSinceLastSend = Date.now() - lastSendStartedAt;
+
+        if (elapsedSinceLastSend < minIntervalMs) {
+          const waitTime = minIntervalMs - elapsedSinceLastSend;
+          this.logger.logInfo('Throttling email send to respect Azure limits', {
+            waitTimeMs: waitTime,
+            minIntervalMs,
+          });
+          await this.sleep(waitTime);
+        }
+      }
+
+      EmailService.lastSendStartedAt = Date.now();
+      return await operation();
+    } finally {
+      releaseQueue();
+    }
+  }
+
+  private getMinSendIntervalMs(): number {
+    const rawIntervalMs = process.env.EMAIL_SEND_MIN_INTERVAL_MS;
+
+    if (rawIntervalMs) {
+      const parsedIntervalMs = Number.parseInt(rawIntervalMs, 10);
+
+      if (Number.isInteger(parsedIntervalMs) && parsedIntervalMs > 0) {
+        return parsedIntervalMs;
+      }
+
+      this.logger.logWarning('Invalid EMAIL_SEND_MIN_INTERVAL_MS configured, using default value', {
+        rawIntervalMs,
+        fallbackIntervalMs: EmailService.DEFAULT_MIN_SEND_INTERVAL_MS,
+      });
+    }
+
+    return EmailService.DEFAULT_MIN_SEND_INTERVAL_MS;
+  }
+
+  private async sleep(milliseconds: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, milliseconds));
   }
 
   // Método de prueba que usa el sistema real de emails con datos mockeados

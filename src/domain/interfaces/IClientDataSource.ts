@@ -11,6 +11,8 @@ export interface IClientDataSource {
     country: string;
     companyName?: string | null;
     notes?: string | null;
+    isActive?: boolean;
+    hasPaid?: boolean;
     monthlyAmount?: number | null;
     paymentDayMonth?: number | null;
   }): Promise<Client>;
@@ -23,6 +25,8 @@ export interface IClientDataSource {
       country?: string;
       companyName?: string | null;
       notes?: string | null;
+      isActive?: boolean;
+      hasPaid?: boolean;
       monthlyAmount?: number | null;
       paymentDayMonth?: number | null;
     }

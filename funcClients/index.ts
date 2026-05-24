@@ -64,7 +64,18 @@ const funcClients = async (
   // POST /clients - Create new client
   if (method === 'POST') {
     logger.info('POST /clients - Creating new client');
-    const { name, email, phone, country, companyName, notes, monthlyAmount, paymentDayMonth } = req.body;
+    const {
+      name,
+      email,
+      phone,
+      country,
+      companyName,
+      notes,
+      isActive,
+      hasPaid,
+      monthlyAmount,
+      paymentDayMonth,
+    } = req.body;
 
     // Validation
     const errors: string[] = [];
@@ -84,6 +95,8 @@ const funcClients = async (
       country,
       companyName: companyName || undefined,
       notes: notes || undefined,
+      isActive: isActive !== undefined ? Boolean(isActive) : undefined,
+      hasPaid: hasPaid !== undefined ? Boolean(hasPaid) : undefined,
       monthlyAmount: monthlyAmount !== undefined ? monthlyAmount : null,
       paymentDayMonth: paymentDayMonth !== undefined ? paymentDayMonth : null,
     };
@@ -114,8 +127,11 @@ const funcClients = async (
       country: req.body.country,
       companyName: req.body.companyName !== undefined ? req.body.companyName : undefined,
       notes: req.body.notes !== undefined ? req.body.notes : undefined,
+      isActive: req.body.isActive !== undefined ? Boolean(req.body.isActive) : undefined,
+      hasPaid: req.body.hasPaid !== undefined ? Boolean(req.body.hasPaid) : undefined,
       monthlyAmount: req.body.monthlyAmount !== undefined ? req.body.monthlyAmount : undefined,
-      paymentDayMonth: req.body.paymentDayMonth !== undefined ? req.body.paymentDayMonth : undefined,
+      paymentDayMonth:
+        req.body.paymentDayMonth !== undefined ? req.body.paymentDayMonth : undefined,
     };
 
     const client = await clientService.updateClient(id, updateRequest);

@@ -10,6 +10,8 @@ export interface ClientRequest {
   country: string;
   companyName?: string;
   notes?: string;
+  isActive?: boolean;
+  hasPaid?: boolean;
   monthlyAmount?: number | null;
   paymentDayMonth?: number | null;
 }
@@ -22,6 +24,8 @@ export interface ClientResponse {
   country: string;
   companyName?: string | null;
   notes?: string | null;
+  isActive: boolean;
+  hasPaid: boolean;
   monthlyAmount?: Decimal | number | null;
   paymentDayMonth?: number | null;
   createdAt: Date;
@@ -35,6 +39,8 @@ export interface UpdateClientRequest {
   country?: string;
   companyName?: string | null;
   notes?: string | null;
+  isActive?: boolean;
+  hasPaid?: boolean;
   monthlyAmount?: number | null;
   paymentDayMonth?: number | null;
 }
@@ -69,7 +75,10 @@ export class ClientService {
   /**
    * Get all clients with pagination
    */
-  async getAllClients(page: number = 1, limit: number = 10): Promise<{ clients: ClientResponse[]; total: number }> {
+  async getAllClients(
+    page: number = 1,
+    limit: number = 10
+  ): Promise<{ clients: ClientResponse[]; total: number }> {
     this.logger.info(`Fetching all clients - Page: ${page}, Limit: ${limit}`);
 
     return await this.clientDataSource.getAll(page, limit);
@@ -146,7 +155,11 @@ export class ClientService {
   /**
    * Search clients by name or email
    */
-  async searchClients(query: string, page: number = 1, limit: number = 10): Promise<{ clients: ClientResponse[]; total: number }> {
+  async searchClients(
+    query: string,
+    page: number = 1,
+    limit: number = 10
+  ): Promise<{ clients: ClientResponse[]; total: number }> {
     this.logger.info(`Searching clients with query: ${query}`);
 
     return await this.clientDataSource.search(query, page, limit);

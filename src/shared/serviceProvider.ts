@@ -7,6 +7,7 @@ import { PurchaseService } from '../application/services/PurchaseService';
 import { CleanupService } from '../application/services/CleanupService';
 import { ClientService } from '../application/services/ClientService';
 import { QuoteService } from '../application/services/QuoteService';
+import { PendingBalanceReminderService } from '../application/services/PendingBalanceReminderService';
 import { MercadoPagoService } from '../infrastructure/services/MercadoPagoService';
 import { EmailService } from '../infrastructure/services/EmailService';
 import { UserPrismaAdapter } from '../infrastructure/DbAdapters/UserPrismaAdapter';
@@ -146,6 +147,13 @@ export class ServiceProvider {
   }
 
   /**
+   * Crea una instancia de PendingBalanceReminderService
+   */
+  static getPendingBalanceReminderService(logger: Logger): PendingBalanceReminderService {
+    return new PendingBalanceReminderService(this.prismaClient, logger);
+  }
+
+  /**
    * Crea una instancia de MercadoPagoService
    */
   static getMercadoPagoService(): MercadoPagoService {
@@ -180,6 +188,10 @@ export const getCleanupService = (logger: Logger): CleanupService => {
 
 export const getEmailService = (logger: Logger): EmailService => {
   return ServiceProvider.getEmailService(logger);
+};
+
+export const getPendingBalanceReminderService = (logger: Logger): PendingBalanceReminderService => {
+  return ServiceProvider.getPendingBalanceReminderService(logger);
 };
 
 export const getMercadoPagoService = (): MercadoPagoService => {

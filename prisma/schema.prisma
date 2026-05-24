@@ -110,6 +110,8 @@ model Client {
   country         String
   companyName     String?   @map("company_name")
   notes           String?
+  isActive        Boolean   @default(true) @map("is_active")
+  hasPaid         Boolean   @default(false) @map("has_paid")
   monthlyAmount   Decimal?  @db.Decimal(10, 2) @map("monthly_amount") // Mensualidad (opcional)
   paymentDayMonth Int?      @map("payment_day_month") // Día del mes para pagar (1-28, opcional)
   createdAt       DateTime  @default(now()) @map("created_at")

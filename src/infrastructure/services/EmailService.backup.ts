@@ -230,15 +230,17 @@ export class EmailService {
 
       // Buscar la compra por payment ID o external reference
       const purchases = await purchaseService.getAllPurchases();
-      
+
       // Buscar por wompiTransactionId o externalReference para webhooks de Wompi
       let purchase = purchases.find((p) => p.wompiTransactionId === paymentWebhookData.id);
-      
+
       // Si no se encuentra por wompiTransactionId, buscar por externalReference
       if (!purchase && paymentWebhookData.externalReference) {
-        purchase = purchases.find((p) => p.externalReference === paymentWebhookData.externalReference);
+        purchase = purchases.find(
+          (p) => p.externalReference === paymentWebhookData.externalReference
+        );
       }
-      
+
       // Fallback: buscar por mercadopagoPaymentId para compatibilidad con MercadoPago
       if (!purchase) {
         purchase = purchases.find((p) => p.mercadopagoPaymentId === paymentWebhookData.id);
@@ -297,17 +299,20 @@ export class EmailService {
   private generatePaymentEmailTemplate(data: PaymentEmailData, uniqueColor: string): string {
     const statusIcon = this.getStatusIcon(data.status);
     const statusMessage = this.getStatusMessage(data.status);
-    
+
     // Generar lista de productos con más detalles
-    const itemsList = data.items && data.items.length > 0 
-      ? data.items.map((item) => `${item.productName} (x${item.quantity})`)
-          .join(', ')
-      : 'No se pudieron cargar los productos';
+    const itemsList =
+      data.items && data.items.length > 0
+        ? data.items.map((item) => `${item.productName} (x${item.quantity})`).join(', ')
+        : 'No se pudieron cargar los productos';
 
     // Generar lista detallada de productos para la sección principal
-    const detailedItemsList = data.items && data.items.length > 0 
-      ? data.items.map((item) => 
-          `<li style="background: white; margin: 8px 0; padding: 12px; border-radius: 6px; border-left: 4px solid ${uniqueColor}; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+    const detailedItemsList =
+      data.items && data.items.length > 0
+        ? data.items
+            .map(
+              (item) =>
+                `<li style="background: white; margin: 8px 0; padding: 12px; border-radius: 6px; border-left: 4px solid ${uniqueColor}; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
               <div style="flex: 1; min-width: 200px;">
                 <strong style="color: #333; font-size: 16px;">${item.productName}</strong>
@@ -331,8 +336,9 @@ export class EmailService {
               </div>
             </div>
           </li>`
-        ).join('')
-      : '<li style="color: #666; text-align: center; padding: 20px;">No se pudieron cargar los detalles de los productos</li>';
+            )
+            .join('')
+        : '<li style="color: #666; text-align: center; padding: 20px;">No se pudieron cargar los detalles de los productos</li>';
 
     const formattedAmount = new Intl.NumberFormat('es-CO', {
       style: 'currency',
@@ -798,7 +804,7 @@ export class EmailService {
 
       // URL de la imagen de moto en Azure Blob Storage
       const imageUrl =
-        'https://ed90mas1files.blob.core.windows.net/moto/Screenshot%202025-08-13%20131752.png';
+        'https://dataorfiles.blob.core.windows.net/moto/Screenshot%202025-08-13%20131752.png';
 
       // Crear el fondo con gradiente igual al SVG original
       const backgroundSvg = `

@@ -5,7 +5,10 @@ import { Client } from '@prisma/client';
 export class ClientPrismaAdapter implements IClientDataSource {
   private prisma = getPrismaClient();
 
-  async getAll(page: number = 1, limit: number = 10): Promise<{ clients: Client[]; total: number }> {
+  async getAll(
+    page: number = 1,
+    limit: number = 10
+  ): Promise<{ clients: Client[]; total: number }> {
     const skip = (page - 1) * limit;
 
     const [clients, total] = await Promise.all([
@@ -39,6 +42,8 @@ export class ClientPrismaAdapter implements IClientDataSource {
     country: string;
     companyName?: string | null;
     notes?: string | null;
+    isActive?: boolean;
+    hasPaid?: boolean;
     monthlyAmount?: number | null;
     paymentDayMonth?: number | null;
   }): Promise<Client> {
@@ -50,6 +55,8 @@ export class ClientPrismaAdapter implements IClientDataSource {
         country: data.country,
         companyName: data.companyName || null,
         notes: data.notes || null,
+        isActive: data.isActive ?? true,
+        hasPaid: data.hasPaid ?? false,
         monthlyAmount: data.monthlyAmount || null,
         paymentDayMonth: data.paymentDayMonth || null,
       },
@@ -65,6 +72,8 @@ export class ClientPrismaAdapter implements IClientDataSource {
       country?: string;
       companyName?: string | null;
       notes?: string | null;
+      isActive?: boolean;
+      hasPaid?: boolean;
       monthlyAmount?: number | null;
       paymentDayMonth?: number | null;
     }
@@ -81,13 +90,20 @@ export class ClientPrismaAdapter implements IClientDataSource {
     });
   }
 
-  async search(query: string, page: number = 1, limit: number = 10): Promise<{ clients: Client[]; total: number }> {
+  async search(
+    query: string,
+    page: number = 1,
+    limit: number = 10
+  ): Promise<{ clients: Client[]; total: number }> {
     const skip = (page - 1) * limit;
 
     const [clients, total] = await Promise.all([
       this.prisma.client.findMany({
         where: {
-          OR: [{ name: { contains: query, mode: 'insensitive' } }, { email: { contains: query, mode: 'insensitive' } }],
+          OR: [
+            { name: { contains: query, mode: 'insensitive' } },
+            { email: { contains: query, mode: 'insensitive' } },
+          ],
         },
         skip,
         take: limit,
@@ -95,7 +111,10 @@ export class ClientPrismaAdapter implements IClientDataSource {
       }),
       this.prisma.client.count({
         where: {
-          OR: [{ name: { contains: query, mode: 'insensitive' } }, { email: { contains: query, mode: 'insensitive' } }],
+          OR: [
+            { name: { contains: query, mode: 'insensitive' } },
+            { email: { contains: query, mode: 'insensitive' } },
+          ],
         },
       }),
     ]);

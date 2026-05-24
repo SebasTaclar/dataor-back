@@ -301,7 +301,9 @@ export class EmailService {
       return '<div style="color: #666; text-align: center; padding: 20px;">No se pudieron cargar los detalles de los productos</div>';
     }
 
-    return data.items.map((item) => `
+    return data.items
+      .map(
+        (item) => `
       <div style="background: white; margin: 8px 0; padding: 15px; border-radius: 8px; border-left: 4px solid ${uniqueColor}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
         <!-- Nombre del producto -->
         <div style="margin-bottom: 10px;">
@@ -340,12 +342,17 @@ export class EmailService {
           </div>
         </div>
       </div>`
-    ).join('');
+      )
+      .join('');
   }
 
-  private generateProductSection(data: PaymentEmailData, uniqueColor: string, itemsList: string): string {
+  private generateProductSection(
+    data: PaymentEmailData,
+    uniqueColor: string,
+    itemsList: string
+  ): string {
     const status = data.status.toUpperCase();
-    
+
     // Configuración para cada estado
     const statusConfig = {
       APPROVED: {
@@ -355,7 +362,8 @@ export class EmailService {
         textColor: 'white',
         statusText: '✅ Compra confirmada',
         subText: 'Tu pedido está siendo procesado para envío/descarga',
-        footerNote: '*Recibirás información adicional sobre el envío/descarga en las próximas horas.'
+        footerNote:
+          '*Recibirás información adicional sobre el envío/descarga en las próximas horas.',
       },
       COMPLETED: {
         title: '📦 Productos confirmados',
@@ -364,7 +372,8 @@ export class EmailService {
         textColor: 'white',
         statusText: '✅ Compra confirmada',
         subText: 'Tu pedido está siendo procesado para envío/descarga',
-        footerNote: '*Recibirás información adicional sobre el envío/descarga en las próximas horas.'
+        footerNote:
+          '*Recibirás información adicional sobre el envío/descarga en las próximas horas.',
       },
       CANCELLED: {
         title: '⚠️ Pedido cancelado',
@@ -373,7 +382,7 @@ export class EmailService {
         textColor: '#383d41',
         statusText: 'Pago cancelado',
         subText: 'Si fue un error, puedes intentar la compra nuevamente.',
-        footerNote: '*No se procesarán pedidos para compras canceladas.'
+        footerNote: '*No se procesarán pedidos para compras canceladas.',
       },
       REJECTED: {
         title: '❌ Pago rechazado',
@@ -382,7 +391,7 @@ export class EmailService {
         textColor: '#721c24',
         statusText: '❌ Pago no procesado',
         subText: 'Verifica tu método de pago e intenta nuevamente',
-        footerNote: '*Puedes intentar realizar la compra nuevamente con otro método de pago.'
+        footerNote: '*Puedes intentar realizar la compra nuevamente con otro método de pago.',
       },
       PENDING: {
         title: '📱 Productos reservados',
@@ -391,8 +400,8 @@ export class EmailService {
         textColor: 'white',
         statusText: '⏳ Esperando confirmación de pago',
         subText: 'Los productos se procesarán una vez que se confirme el pago',
-        footerNote: `*Tu orden está reservada con ID: ${data.paymentId}`
-      }
+        footerNote: `*Tu orden está reservada con ID: ${data.paymentId}`,
+      },
     };
 
     // Obtener configuración para el estado actual (por defecto PENDING si no existe)
@@ -1004,7 +1013,7 @@ export class EmailService {
 
       // URL de la imagen de moto en Azure Blob Storage
       const imageUrl =
-        'https://ed90mas1files.blob.core.windows.net/moto/Screenshot%202025-08-13%20131752.png';
+        'https://dataorfiles.blob.core.windows.net/moto/Screenshot%202025-08-13%20131752.png';
 
       // Crear el fondo con gradiente igual al SVG original
       const backgroundSvg = `

@@ -28,7 +28,7 @@ const funcBackupTimer: AzureFunction = async function (
     const backupData = await purchaseService.generateBackupData(log);
 
     // Preparar el contenido del email
-    const subject = `📊 Backup Diario - Wallpapers Digitales - ${colombiaTime.toLocaleDateString('es-CO')}`;
+    const subject = `📊 (Dataor) Backup Diario - Wallpapers Digitales - ${colombiaTime.toLocaleDateString('es-CO')}`;
 
     const htmlContent = generateBackupEmailTemplate(backupData, colombiaTime);
 

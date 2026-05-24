@@ -1,0 +1,11 @@
+{
+  "bindings": [
+    {
+      "name": "reminderTimer",
+      "type": "timerTrigger",
+      "direction": "in",
+      "schedule": "%PENDING_BALANCE_REMINDER_SCHEDULE%"
+    }
+  ],
+  "scriptFile": "../dist/funcPendingBalanceReminder/index.js"
+}

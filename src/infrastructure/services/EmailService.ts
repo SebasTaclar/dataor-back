@@ -11,6 +11,8 @@ export interface EmailData {
   subject: string;
   htmlContent: string;
   textContent?: string;
+  ccEmails?: Array<{ email: string; name?: string }>;
+  bccEmails?: Array<{ email: string; name?: string }>;
   attachments?: EmailAttachment[];
 }
 
@@ -63,6 +65,8 @@ interface EmailMessageStructure {
   content: EmailContent;
   recipients: {
     to: EmailRecipient[];
+    cc?: EmailRecipient[];
+    bcc?: EmailRecipient[];
   };
   attachments?: Array<{
     name: string;
@@ -82,9 +86,6 @@ export class EmailService {
   private logger: Logger;
   private senderEmail: string;
   private readonly STORE_NAME = 'Apple Store Pro';
-  private static sendQueue: Promise<void> = Promise.resolve();
-  private static lastSendStartedAt = 0;
-  private static readonly DEFAULT_MIN_SEND_INTERVAL_MS = 6 * 60 * 1000;
 
   constructor(logger: Logger) {
     this.logger = logger;
@@ -129,6 +130,20 @@ export class EmailService {
             ],
           },
         };
+
+        if (emailData.ccEmails && emailData.ccEmails.length > 0) {
+          message.recipients.cc = emailData.ccEmails.map((recipient) => ({
+            address: recipient.email,
+            displayName: recipient.name || recipient.email,
+          }));
+        }
+
+        if (emailData.bccEmails && emailData.bccEmails.length > 0) {
+          message.recipients.bcc = emailData.bccEmails.map((recipient) => ({
+            address: recipient.email,
+            displayName: recipient.name || recipient.email,
+          }));
+        }
 
         // Agregar attachments si existen
         if (emailData.attachments && emailData.attachments.length > 0) {
@@ -1313,60 +1328,7 @@ export class EmailService {
   }
 
   private async runWithSendThrottle<T>(operation: () => Promise<T>): Promise<T> {
-    const previousSend = EmailService.sendQueue;
-    let releaseQueue!: () => void;
-
-    EmailService.sendQueue = new Promise<void>((resolve) => {
-      releaseQueue = resolve;
-    });
-
-    await previousSend;
-
-    try {
-      const minIntervalMs = this.getMinSendIntervalMs();
-      const lastSendStartedAt = EmailService.lastSendStartedAt;
-
-      if (lastSendStartedAt > 0) {
-        const elapsedSinceLastSend = Date.now() - lastSendStartedAt;
-
-        if (elapsedSinceLastSend < minIntervalMs) {
-          const waitTime = minIntervalMs - elapsedSinceLastSend;
-          this.logger.logInfo('Throttling email send to respect Azure limits', {
-            waitTimeMs: waitTime,
-            minIntervalMs,
-          });
-          await this.sleep(waitTime);
-        }
-      }
-
-      EmailService.lastSendStartedAt = Date.now();
-      return await operation();
-    } finally {
-      releaseQueue();
-    }
-  }
-
-  private getMinSendIntervalMs(): number {
-    const rawIntervalMs = process.env.EMAIL_SEND_MIN_INTERVAL_MS;
-
-    if (rawIntervalMs) {
-      const parsedIntervalMs = Number.parseInt(rawIntervalMs, 10);
-
-      if (Number.isInteger(parsedIntervalMs) && parsedIntervalMs > 0) {
-        return parsedIntervalMs;
-      }
-
-      this.logger.logWarning('Invalid EMAIL_SEND_MIN_INTERVAL_MS configured, using default value', {
-        rawIntervalMs,
-        fallbackIntervalMs: EmailService.DEFAULT_MIN_SEND_INTERVAL_MS,
-      });
-    }
-
-    return EmailService.DEFAULT_MIN_SEND_INTERVAL_MS;
-  }
-
-  private async sleep(milliseconds: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, milliseconds));
+    return await operation();
   }
 
   // Método de prueba que usa el sistema real de emails con datos mockeados

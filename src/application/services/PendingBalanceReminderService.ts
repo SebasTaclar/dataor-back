@@ -2,6 +2,13 @@ import { PrismaClient } from '@prisma/client';
 import { Logger } from '../../shared/Logger';
 import { getEmailService } from '../../shared/serviceProvider';
 import { createPendingBalanceReminderEmailHtml } from '../../infrastructure/services/emailTemplates/pendingBalanceReminderTemplate';
+import type { EmailData } from '../../infrastructure/services/EmailService';
+
+interface PendingBalanceReminderError {
+  clientId: number;
+  email?: string;
+  error: string;
+}
 
 export class PendingBalanceReminderService {
   private prisma: PrismaClient;
@@ -16,7 +23,11 @@ export class PendingBalanceReminderService {
    * Busca clientes activos con mensualidad definida cuyo día de pago ya venció
    * y envía un correo recordatorio.
    */
-  async sendPendingBalanceReminders(): Promise<{ sent: number; skipped: number; errors: any[] }> {
+  async sendPendingBalanceReminders(): Promise<{
+    sent: number;
+    skipped: number;
+    errors: PendingBalanceReminderError[];
+  }> {
     this.logger.logInfo('Running pending balance reminders');
 
     // Hora en Colombia (UTC-5)
@@ -63,7 +74,7 @@ export class PendingBalanceReminderService {
 
     let sent = 0;
     let skipped = 0;
-    const errors: any[] = [];
+    const errors: PendingBalanceReminderError[] = [];
 
     for (const client of clients) {
       try {
@@ -94,61 +105,61 @@ export class PendingBalanceReminderService {
         const htmlContent = createPendingBalanceReminderEmailHtml({
           clientName: client.name,
           companyName: client.companyName,
-          monthlyAmount: client.monthlyAmount?.toString() ?? null,
+          pendingAmount: client.monthlyAmount?.toString() ?? null,
           paymentDay,
           contactName,
           contactNumber,
         });
 
-        const textContent = `Hola ${client.companyName || client.name},\n\nPor favor cancelar saldo pendiente correspondiente a la mensualidad de ${
-          client.monthlyAmount ?? 'N/A'
-        } cuyo día de pago es el ${paymentDay}.\n\nPor favor comunicarse con Miguel Bustos al número ${contactNumber} para coordinar el pago.\n\nGracias.`;
+        const textContent = `Hola ${client.companyName || client.name},\n\nPor favor pagar valor mensualidad (${client.monthlyAmount ?? 'N/A'}) y saldos pendientes si aplica. El día de pago es el ${paymentDay}.\n\nPor favor comunicarse con Miguel Bustos al número ${contactNumber} para coordinar el pago.\n\nGracias.`;
 
-        const recipients = Array.from(
-          new Set(
-            [companyReminderEmail, client.email].filter((email): email is string => Boolean(email))
-          )
-        );
-
-        if (recipients.length === 0) {
-          this.logger.logWarning('Client has no email and company email is missing, skipping', {
+        if (!client.email) {
+          this.logger.logWarning('Client has no email, skipping reminder', {
             clientId: client.id,
           });
           skipped++;
           continue;
         }
 
-        for (const recipientEmail of recipients) {
-          try {
-            await this.sendEmailWithSingleRetry(emailService, {
-              toEmail: recipientEmail,
-              toName: recipientEmail === companyReminderEmail ? 'Empresa' : clientDisplayName,
-              subject,
-              htmlContent,
-              textContent,
-            });
+        try {
+          const companyBccEmail =
+            companyReminderEmail && companyReminderEmail !== client.email
+              ? companyReminderEmail
+              : null;
 
-            sent++;
-            this.logger.logInfo('Pending balance reminder sent', {
-              clientId: client.id,
-              email: recipientEmail,
-            });
-          } catch (error) {
-            this.logger.logError('Pending balance reminder failed after retry', {
-              error,
-              clientId: client.id,
-              email: recipientEmail,
-            });
-            errors.push({
-              clientId: client.id,
-              email: recipientEmail,
-              error: (error as Error).message || error,
-            });
-          }
+          await this.sendEmailWithSingleRetry(emailService, {
+            toEmail: client.email,
+            toName: clientDisplayName,
+            subject,
+            htmlContent,
+            textContent,
+            bccEmails: companyBccEmail
+              ? [
+                  {
+                    email: companyBccEmail,
+                    name: 'Empresa',
+                  },
+                ]
+              : undefined,
+          });
 
-          if (recipientEmail !== recipients[recipients.length - 1]) {
-            await this.sleep(500);
-          }
+          sent++;
+          this.logger.logInfo('Pending balance reminder sent', {
+            clientId: client.id,
+            email: client.email,
+            copiedToCompany: Boolean(companyBccEmail),
+          });
+        } catch (error) {
+          this.logger.logError('Pending balance reminder failed after retry', {
+            error,
+            clientId: client.id,
+            email: client.email,
+          });
+          errors.push({
+            clientId: client.id,
+            email: client.email,
+            error: (error as Error).message || error,
+          });
         }
       } catch (error) {
         this.logger.logError('Error sending pending balance reminder', {
@@ -183,14 +194,8 @@ export class PendingBalanceReminderService {
   }
 
   private async sendEmailWithSingleRetry(
-    emailService: { sendEmail: (emailData: any) => Promise<void> },
-    emailData: {
-      toEmail: string;
-      toName: string;
-      subject: string;
-      htmlContent: string;
-      textContent?: string;
-    }
+    emailService: { sendEmail: (emailData: EmailData) => Promise<void> },
+    emailData: EmailData
   ): Promise<void> {
     try {
       await emailService.sendEmail(emailData);

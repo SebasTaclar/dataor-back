@@ -189,10 +189,6 @@ export class PendingBalanceReminderService {
     return parsedInterval;
   }
 
-  private async sleep(milliseconds: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, milliseconds));
-  }
-
   private async sendEmailWithSingleRetry(
     emailService: { sendEmail: (emailData: EmailData) => Promise<void> },
     emailData: EmailData

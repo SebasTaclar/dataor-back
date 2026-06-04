@@ -21,7 +21,7 @@ export class PendingBalanceReminderService {
 
   /**
    * Busca clientes activos con mensualidad definida cuyo día de pago ya venció
-   * y envía un correo recordatorio.
+   * y envía UN SOLO correo recordatorio al COMPANY_EMAIL con todos los clientes como BCC.
    */
   async sendPendingBalanceReminders(): Promise<{
     sent: number;
@@ -30,9 +30,8 @@ export class PendingBalanceReminderService {
   }> {
     this.logger.logInfo('Running pending balance reminders');
 
-    // Hora en Colombia (UTC-5)
     const now = new Date();
-    const colombiaOffset = -5 * 60; // en minutos
+    const colombiaOffset = -5 * 60;
     const colombiaTime = new Date(now.getTime() + colombiaOffset * 60 * 1000);
     const today = colombiaTime.getDate();
     const colombiaDate = colombiaTime.toLocaleDateString('es-CO');
@@ -59,7 +58,6 @@ export class PendingBalanceReminderService {
       return { sent: 0, skipped: 0, errors: [] };
     }
 
-    // Buscar clientes activos, no pagados, con mensualidad y día de pago configurado
     const clients = await this.prisma.client.findMany({
       where: {
         isActive: true,
@@ -71,106 +69,89 @@ export class PendingBalanceReminderService {
 
     const emailService = getEmailService(this.logger);
     const companyReminderEmail = process.env.COMPANY_EMAIL;
-
-    let sent = 0;
-    let skipped = 0;
     const errors: PendingBalanceReminderError[] = [];
+    let skipped = 0;
 
-    for (const client of clients) {
-      try {
-        const paymentDay = client.paymentDayMonth as number | null;
-        if (!paymentDay) {
-          skipped++;
-          continue;
-        }
-
-        // Si el día configurado ya venció en el mes actual
-        if (paymentDay >= today) {
-          skipped++;
-          continue;
-        }
-
-        const contactNumber = process.env.CONTACT_MIGUEL_NUMBER;
-        const contactName = process.env.CONTACT_MIGUEL_NAME;
-        const clientDisplayName = client.companyName || client.name;
-        const colombiaTimeLabel = colombiaTime.toLocaleTimeString('es-CO', {
-          hour12: false,
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-        });
-
-        const subject = `Recordatorio pago a Dataor - ${clientDisplayName} - ${colombiaDate} ${colombiaTimeLabel}`;
-
-        const htmlContent = createPendingBalanceReminderEmailHtml({
-          clientName: client.name,
-          companyName: client.companyName,
-          pendingAmount: client.monthlyAmount?.toString() ?? null,
-          paymentDay,
-          contactName,
-          contactNumber,
-        });
-
-        const textContent = `Hola ${client.companyName || client.name},\n\nPor favor pagar valor mensualidad (${client.monthlyAmount ?? 'N/A'}) y saldos pendientes si aplica. El día de pago es el ${paymentDay}.\n\nPor favor comunicarse con Miguel Bustos al número ${contactNumber} para coordinar el pago.\n\nGracias.`;
-
-        if (!client.email) {
-          this.logger.logWarning('Client has no email, skipping reminder', {
-            clientId: client.id,
-          });
-          skipped++;
-          continue;
-        }
-
-        try {
-          const companyBccEmail =
-            companyReminderEmail && companyReminderEmail !== client.email
-              ? companyReminderEmail
-              : null;
-
-          await this.sendEmailWithSingleRetry(emailService, {
-            toEmail: client.email,
-            toName: clientDisplayName,
-            subject,
-            htmlContent,
-            textContent,
-            bccEmails: companyBccEmail
-              ? [
-                  {
-                    email: companyBccEmail,
-                    name: 'Empresa',
-                  },
-                ]
-              : undefined,
-          });
-
-          sent++;
-          this.logger.logInfo('Pending balance reminder sent', {
-            clientId: client.id,
-            email: client.email,
-            copiedToCompany: Boolean(companyBccEmail),
-          });
-        } catch (error) {
-          this.logger.logError('Pending balance reminder failed after retry', {
-            error,
-            clientId: client.id,
-            email: client.email,
-          });
-          errors.push({
-            clientId: client.id,
-            email: client.email,
-            error: (error as Error).message || error,
-          });
-        }
-      } catch (error) {
-        this.logger.logError('Error sending pending balance reminder', {
-          error,
-          clientId: client.id,
-        });
-        errors.push({ clientId: client.id, error: (error as Error).message || error });
-      }
+    if (!companyReminderEmail) {
+      this.logger.logError('COMPANY_EMAIL is not configured');
+      errors.push({ clientId: 0, error: 'COMPANY_EMAIL is not configured' });
+      return { sent: 0, skipped: 0, errors };
     }
 
-    return { sent, skipped, errors };
+    const clientEmails: Array<{ email: string; name?: string }> = [];
+
+    for (const client of clients) {
+      const paymentDay = client.paymentDayMonth as number | null;
+      if (!paymentDay || paymentDay >= today) {
+        skipped++;
+        continue;
+      }
+
+      if (!client.email) {
+        this.logger.logWarning('Client has no email, skipping reminder', {
+          clientId: client.id,
+        });
+        skipped++;
+        continue;
+      }
+
+      clientEmails.push({
+        email: client.email,
+        name: client.companyName || client.name,
+      });
+    }
+
+    if (clientEmails.length === 0) {
+      this.logger.logInfo('No clients with pending balance to notify');
+      return { sent: 0, skipped, errors };
+    }
+
+    const contactNumber = process.env.CONTACT_MIGUEL_NUMBER;
+    const contactName = process.env.CONTACT_MIGUEL_NAME;
+    const colombiaTimeLabel = colombiaTime.toLocaleTimeString('es-CO', {
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+
+    const subject = `Recordatorio de saldos pendientes - ${colombiaDate} ${colombiaTimeLabel}`;
+
+    const htmlContent = createPendingBalanceReminderEmailHtml({
+      contactName,
+      contactNumber,
+    });
+
+    const textContent = `Estimado cliente,\n\nTienen pagos pendientes de mensualidad y/o saldos correspondientes a implementación. Por favor comuníquense con nosotros para coordinar el pago.\n\nPor favor comunicarse con ${contactName} al número ${contactNumber} para coordinar el pago.\n\nGracias.`;
+
+    try {
+      await this.sendEmailWithSingleRetry(emailService, {
+        toEmail: companyReminderEmail,
+        toName: 'Dataor',
+        subject,
+        htmlContent,
+        textContent,
+        bccEmails: clientEmails,
+      });
+
+      this.logger.logInfo('Pending balance reminder sent', {
+        toEmail: companyReminderEmail,
+        bccCount: clientEmails.length,
+      });
+
+      return { sent: 1, skipped, errors };
+    } catch (error) {
+      this.logger.logError('Pending balance reminder failed after retry', {
+        error,
+        toEmail: companyReminderEmail,
+      });
+      errors.push({
+        clientId: 0,
+        email: companyReminderEmail,
+        error: (error as Error).message || error,
+      });
+      return { sent: 0, skipped, errors };
+    }
   }
 
   private getReminderIntervalDays(): number {

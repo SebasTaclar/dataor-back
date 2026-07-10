@@ -1,20 +1,23 @@
 import { getPrismaClient } from '../../config/PrismaClient';
 import { IClientDataSource } from '../../domain/interfaces/IClientDataSource';
-import { Client } from '@prisma/client';
+import { StoredFile } from '../../domain/entities/StoredFile';
+import { Client, Prisma } from '@prisma/client';
 
 export class ClientPrismaAdapter implements IClientDataSource {
   private prisma = getPrismaClient();
 
   async getAll(
-    page: number = 1,
-    limit: number = 10
+    page?: number,
+    limit?: number
   ): Promise<{ clients: Client[]; total: number }> {
-    const skip = (page - 1) * limit;
+    const shouldPaginate = page !== undefined && limit !== undefined;
+    const skip = shouldPaginate ? (page! - 1) * limit! : undefined;
+    const take = shouldPaginate ? limit : undefined;
 
     const [clients, total] = await Promise.all([
       this.prisma.client.findMany({
         skip,
-        take: limit,
+        take,
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.client.count(),
@@ -46,6 +49,7 @@ export class ClientPrismaAdapter implements IClientDataSource {
     hasPaid?: boolean;
     monthlyAmount?: number | null;
     paymentDayMonth?: number | null;
+    files?: unknown;
   }): Promise<Client> {
     return await this.prisma.client.create({
       data: {
@@ -59,6 +63,7 @@ export class ClientPrismaAdapter implements IClientDataSource {
         hasPaid: data.hasPaid ?? false,
         monthlyAmount: data.monthlyAmount || null,
         paymentDayMonth: data.paymentDayMonth || null,
+        files: (data.files as Prisma.InputJsonValue) || null,
       },
     });
   }
@@ -81,6 +86,15 @@ export class ClientPrismaAdapter implements IClientDataSource {
     return await this.prisma.client.update({
       where: { id },
       data,
+    });
+  }
+
+  async updateFiles(id: number, files: StoredFile[]): Promise<void> {
+    await this.prisma.client.update({
+      where: { id },
+      data: {
+        files: files as unknown as Prisma.InputJsonValue,
+      },
     });
   }
 

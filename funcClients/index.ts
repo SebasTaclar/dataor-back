@@ -4,6 +4,77 @@ import { ClientRequest, UpdateClientRequest } from '../src/application/services/
 import { withApiHandler } from '../src/shared/apiHandler';
 import { Logger } from '../src/shared/Logger';
 import { ApiResponseBuilder } from '../src/shared/ApiResponse';
+import { UploadFile } from '../src/domain/entities/StoredFile';
+import { validateAuthToken } from '../src/shared/authHelper';
+import Busboy from 'busboy';
+
+interface ParsedMultipartData {
+  fields: Record<string, string>;
+  files: UploadFile[];
+}
+
+function parseMultipartData(req: HttpRequest): Promise<ParsedMultipartData> {
+  return new Promise((resolve, reject) => {
+    const fields: Record<string, string> = {};
+    const files: UploadFile[] = [];
+
+    const contentType = req.headers['content-type'] || '';
+    if (!contentType.includes('multipart/form-data')) {
+      reject(new Error('Content-Type must be multipart/form-data'));
+      return;
+    }
+
+    const busboy = Busboy({ headers: { 'content-type': contentType } });
+
+    busboy.on('field', (name: string, value: string) => {
+      fields[name] = value;
+    });
+
+    busboy.on('file', (name: string, file: NodeJS.ReadableStream, info: { filename: string; encoding: string; mimeType: string }) => {
+      const chunks: Buffer[] = [];
+      
+      file.on('data', (chunk: Buffer) => {
+        chunks.push(chunk);
+      });
+
+      file.on('end', () => {
+        const buffer = Buffer.concat(chunks);
+        files.push({
+          buffer,
+          name: info.filename,
+          type: info.mimeType,
+        });
+      });
+    });
+
+    busboy.on('finish', () => {
+      resolve({ fields, files });
+    });
+
+    busboy.on('error', (error: Error) => {
+      reject(error);
+    });
+
+    if (req.body) {
+      if (Buffer.isBuffer(req.body)) {
+        busboy.end(req.body);
+      } else if (typeof req.body === 'string') {
+        busboy.end(Buffer.from(req.body));
+      } else if (typeof req.body === 'object') {
+        const bodyObj = req.body as Record<string, unknown>;
+        if (bodyObj.data && Buffer.isBuffer(bodyObj.data)) {
+          busboy.end(bodyObj.data);
+        } else {
+          busboy.end(Buffer.from(JSON.stringify(req.body)));
+        }
+      } else {
+        reject(new Error('Unsupported body type'));
+      }
+    } else {
+      reject(new Error('No body provided'));
+    }
+  });
+}
 
 const funcClients = async (
   _context: Context,
@@ -14,38 +85,57 @@ const funcClients = async (
   const method = req.method?.toUpperCase();
   const id = req.params.id ? parseInt(req.params.id, 10) : null;
 
-  // GET /clients - List all clients with pagination and search
+  // GET /clients - List all clients (público)
   if (method === 'GET' && !id) {
     logger.info('GET /clients - Fetching all clients');
-    const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
-    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 10;
+    const page = req.query.page ? parseInt(req.query.page as string, 10) : undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
     const search = req.query.search as string | undefined;
 
     let result;
 
     if (search) {
-      result = await clientService.searchClients(search, page, limit);
+      result = await clientService.searchClients(search, page || 1, limit || 10);
+    } else if (page || limit) {
+      result = await clientService.getAllClients(page || 1, limit || 10);
     } else {
-      result = await clientService.getAllClients(page, limit);
+      result = await clientService.getAllClients();
     }
 
-    const totalPages = Math.ceil(result.total / limit);
+    const effectiveLimit = limit || result.total;
+    const effectivePage = page || 1;
+    const totalPages = Math.ceil(result.total / effectiveLimit);
 
     return ApiResponseBuilder.success(
       {
         count: result.clients.length,
         clients: result.clients,
-        pagination: {
-          page,
-          limit,
+        pagination: limit || page ? {
+          page: effectivePage,
+          limit: effectiveLimit,
           total: result.total,
           totalPages,
-          hasNext: page < totalPages,
-          hasPrevious: page > 1,
-        },
+          hasNext: effectivePage < totalPages,
+          hasPrevious: effectivePage > 1,
+        } : undefined,
       },
       search ? `Clients found matching "${search}"` : 'Clients retrieved successfully'
     );
+  }
+
+  // Endpoints protegidos requieren JWT
+  const authHeader = req.headers.authorization || req.headers.Authorization;
+  if (!authHeader) {
+    return ApiResponseBuilder.error('Unauthorized: Missing authorization header', 401);
+  }
+
+  try {
+    const token = validateAuthToken(authHeader);
+    logger.logInfo(`User authenticated`);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
+    logger.logError(`Authentication failed: ${errorMessage}`);
+    return ApiResponseBuilder.error('Unauthorized: Invalid or expired token', 401);
   }
 
   // GET /clients/{id} - Get specific client
@@ -64,6 +154,17 @@ const funcClients = async (
   // POST /clients - Create new client
   if (method === 'POST') {
     logger.info('POST /clients - Creating new client');
+
+    let parsedData: ParsedMultipartData;
+    try {
+      parsedData = await parseMultipartData(req);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to parse multipart data';
+      logger.logError(errorMessage);
+      return ApiResponseBuilder.badRequest(errorMessage);
+    }
+
+    const { fields, files } = parsedData;
     const {
       name,
       email,
@@ -75,7 +176,7 @@ const funcClients = async (
       hasPaid,
       monthlyAmount,
       paymentDayMonth,
-    } = req.body;
+    } = fields;
 
     // Validation
     const errors: string[] = [];
@@ -97,11 +198,11 @@ const funcClients = async (
       notes: notes || undefined,
       isActive: isActive !== undefined ? Boolean(isActive) : undefined,
       hasPaid: hasPaid !== undefined ? Boolean(hasPaid) : undefined,
-      monthlyAmount: monthlyAmount !== undefined ? monthlyAmount : null,
-      paymentDayMonth: paymentDayMonth !== undefined ? paymentDayMonth : null,
+      monthlyAmount: monthlyAmount !== undefined ? Number(monthlyAmount) : null,
+      paymentDayMonth: paymentDayMonth !== undefined ? Number(paymentDayMonth) : null,
     };
 
-    const client = await clientService.createClient(clientRequest);
+    const client = await clientService.createClient(clientRequest, files.length > 0 ? files : undefined);
 
     return {
       success: true,
@@ -120,18 +221,19 @@ const funcClients = async (
       return ApiResponseBuilder.badRequest('Invalid client ID');
     }
 
+    const body = req.body as Record<string, unknown>;
+
     const updateRequest: UpdateClientRequest = {
-      name: req.body.name,
-      email: req.body.email,
-      phone: req.body.phone,
-      country: req.body.country,
-      companyName: req.body.companyName !== undefined ? req.body.companyName : undefined,
-      notes: req.body.notes !== undefined ? req.body.notes : undefined,
-      isActive: req.body.isActive !== undefined ? Boolean(req.body.isActive) : undefined,
-      hasPaid: req.body.hasPaid !== undefined ? Boolean(req.body.hasPaid) : undefined,
-      monthlyAmount: req.body.monthlyAmount !== undefined ? req.body.monthlyAmount : undefined,
-      paymentDayMonth:
-        req.body.paymentDayMonth !== undefined ? req.body.paymentDayMonth : undefined,
+      name: body.name as string | undefined,
+      email: body.email as string | undefined,
+      phone: body.phone as string | undefined,
+      country: body.country as string | undefined,
+      companyName: body.companyName as string | undefined,
+      notes: body.notes as string | undefined,
+      isActive: body.isActive !== undefined ? Boolean(body.isActive) : undefined,
+      hasPaid: body.hasPaid !== undefined ? Boolean(body.hasPaid) : undefined,
+      monthlyAmount: body.monthlyAmount !== undefined ? Number(body.monthlyAmount) : undefined,
+      paymentDayMonth: body.paymentDayMonth !== undefined ? Number(body.paymentDayMonth) : undefined,
     };
 
     const client = await clientService.updateClient(id, updateRequest);

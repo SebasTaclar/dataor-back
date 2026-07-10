@@ -10,6 +10,8 @@ import { QuoteService } from '../application/services/QuoteService';
 import { PendingBalanceReminderService } from '../application/services/PendingBalanceReminderService';
 import { MercadoPagoService } from '../infrastructure/services/MercadoPagoService';
 import { EmailService } from '../infrastructure/services/EmailService';
+import { CloudflareR2Service } from '../infrastructure/services/CloudflareR2Service';
+import { FileStorageService } from '../infrastructure/services/FileStorageService';
 import { UserPrismaAdapter } from '../infrastructure/DbAdapters/UserPrismaAdapter';
 import { CategoryPrismaAdapter } from '../infrastructure/DbAdapters/CategoryPrismaAdapter';
 import { ProductPrismaAdapter } from '../infrastructure/DbAdapters/ProductPrismaAdapter';
@@ -127,7 +129,8 @@ export class ServiceProvider {
    */
   static getClientService(logger: Logger): ClientService {
     const clientDataSource = this.getClientDataSource();
-    return new ClientService(logger, clientDataSource);
+    const fileStorageService = this.getFileStorageService(logger);
+    return new ClientService(logger, clientDataSource, fileStorageService);
   }
 
   /**
@@ -158,6 +161,21 @@ export class ServiceProvider {
    */
   static getMercadoPagoService(): MercadoPagoService {
     return new MercadoPagoService();
+  }
+
+  /**
+   * Crea una instancia de CloudflareR2Service
+   */
+  static getR2Service(logger: Logger): CloudflareR2Service {
+    return new CloudflareR2Service(logger);
+  }
+
+  /**
+   * Crea una instancia de FileStorageService con sus dependencias inyectadas
+   */
+  static getFileStorageService(logger: Logger): FileStorageService {
+    const r2Service = this.getR2Service(logger);
+    return new FileStorageService(logger, r2Service);
   }
 }
 
@@ -196,6 +214,14 @@ export const getPendingBalanceReminderService = (logger: Logger): PendingBalance
 
 export const getMercadoPagoService = (): MercadoPagoService => {
   return ServiceProvider.getMercadoPagoService();
+};
+
+export const getR2Service = (logger: Logger): CloudflareR2Service => {
+  return ServiceProvider.getR2Service(logger);
+};
+
+export const getFileStorageService = (logger: Logger): FileStorageService => {
+  return ServiceProvider.getFileStorageService(logger);
 };
 
 export const getClientService = (logger: Logger): ClientService => {

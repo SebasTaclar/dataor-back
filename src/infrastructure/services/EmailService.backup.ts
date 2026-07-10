@@ -3,7 +3,7 @@ import { Logger } from '../../shared/Logger';
 import { getPurchaseService } from '../../shared/serviceProvider';
 import * as https from 'https';
 import * as http from 'http';
-import * as sharp from 'sharp';
+import sharp from 'sharp';
 
 export interface EmailData {
   toEmail: string;

@@ -132,17 +132,39 @@ Authorization: Bearer {{token}}
 # 5️⃣ CLIENTS (CRUD Unificado)
 # ==========================================
 
-### GET - Listar todos los clientes (con paginación)
+### GET - Listar todos los clientes (PÚBLICO - sin token)
+GET {{baseUrl}}/clients
+
+### GET - Listar clientes con paginación (PÚBLICO)
 GET {{baseUrl}}/clients?page=1&limit=10
 
-### GET - Buscar clientes por nombre o email
+### GET - Buscar clientes por nombre o email (PÚBLICO)
 GET {{baseUrl}}/clients?search=juan&page=1&limit=10
 
-### GET - Obtener cliente por ID
+### GET - Obtener cliente por ID (requiere JWT)
 GET {{baseUrl}}/clients/1
+Authorization: Bearer {{token}}
 
-### POST - Crear cliente (con información de facturación)
+### POST - Crear cliente (requiere JWT)
 POST {{baseUrl}}/clients
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data
+
+---form-data
+name: María López
+email: maria@test.com
+phone: +57 301 987 6543
+country: Colombia
+companyName: Tech Corp
+notes: Cliente con archivos
+monthlyAmount: 60000
+paymentDayMonth: 10
+files: file:///C:/path/to/documento.pdf
+files: file:///C:/path/to/foto.jpg
+
+### POST - Crear cliente sin archivos (requiere JWT)
+POST {{baseUrl}}/clients
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -150,37 +172,76 @@ Content-Type: application/json
   "email": "juan@example.com",
   "phone": "+57 300 123 4567",
   "country": "Colombia",
-  "companyName": "Tech Solutions",
-  "notes": "Cliente premium",
-  "monthlyAmount": 50000.00,
-  "paymentDayMonth": 15
+  "companyName": "Tech Solutions"
 }
 
-### POST - Crear cliente (mínimos campos)
-POST {{baseUrl}}/clients
-Content-Type: application/json
-
-{
-  "name": "María López",
-  "email": "maria@example.com",
-  "phone": "+57 301 987 6543",
-  "country": "Colombia"
-}
-
-### PATCH - Actualizar cliente (incluyendo información de facturación)
+### PATCH - Actualizar cliente (requiere JWT)
 PATCH {{baseUrl}}/clients/1
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
   "name": "Juan García Updated",
   "phone": "+57 300 999 8888",
   "companyName": "New Company",
-  "monthlyAmount": 75000.00,
-  "paymentDayMonth": 20
+  "monthlyAmount": 75000.00
 }
 
-### DELETE - Eliminar cliente
+### DELETE - Eliminar cliente (requiere JWT)
 DELETE {{baseUrl}}/clients/1
+Authorization: Bearer {{token}}
+
+# ==========================================
+# 5.1️⃣ CLIENT FILES (Archivos de clientes)
+# ==========================================
+
+### POST - Agregar archivo(s) a un cliente
+# Requiere JWT
+# Respuesta: cliente actualizado con su lista de archivos
+POST {{baseUrl}}/v1/files/clients/1
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data
+
+---form-data
+files: file:///C:/path/to/documento.pdf
+
+### POST - Agregar múltiples archivos a un cliente
+# Requiere JWT
+# Respuesta: cliente actualizado con su lista de archivos
+POST {{baseUrl}}/v1/files/clients/1
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data
+
+---form-data
+files: file:///C:/path/to/archivo1.pdf
+files: file:///C:/path/to/archivo2.jpg
+files: file:///C:/path/to/archivo3.png
+
+### DELETE - Eliminar archivo específico de un cliente
+# Requiere JWT
+# El fileKey viene en la respuesta del GET /clients o al subir archivos
+# Ejemplo: si el archivo tiene key "clients/1-abc123-def456.pdf"
+DELETE {{baseUrl}}/v1/files/clients/1/clients/1-abc123-def456.pdf
+Authorization: Bearer {{token}}
+
+# ==========================================
+# 5.2️⃣ FILES (Testing - Genérico)
+# ==========================================
+
+### POST - Subir archivo a carpeta test/
+# Requiere JWT
+# Respuesta: [{name, type, key: "test/{uuid}.ext", url}]
+POST {{baseUrl}}/v1/files/test/0
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data
+
+---form-data
+files: file:///C:/path/to/test-image.jpg
+
+### DELETE - Eliminar archivo de carpeta test/
+# Requiere JWT
+DELETE {{baseUrl}}/v1/files/test/0/test/c3d4e5f6-a7b8-9c0d.pdf
+Authorization: Bearer {{token}}
 
 # ==========================================
 # 6️⃣ QUOTES (CRUD Unificado - Cotizaciones)
@@ -396,12 +457,14 @@ POST {{baseUrl}}/funcBackupTimer
 #    - funcCreateUser
 #    - funcCategories (todas las operaciones)
 #    - funcProducts (todas las operaciones)
+#    - /v1/files/* (POST y DELETE)
+#    - /clients/{id} (GET individual, POST, PATCH, DELETE)
 #    - Incluir: Authorization: Bearer {{token}}
 #
 # 2. Endpoints públicos (sin JWT):
 #    - funcHealthDB
 #    - funcLogin
-#    - /clients (CRUD)
+#    - /clients (GET listado - sin parámetro id)
 #    - /quotes (CRUD)
 #    - v1/payment/create
 #    - funcGetPayments, funcGetOrders
@@ -420,3 +483,46 @@ POST {{baseUrl}}/funcBackupTimer
 #      "timestamp": "ISO-8601",
 #      "statusCode": 200
 #    }
+#
+# 5. ARCHIVOS EN CLIENTES:
+#    - Crear cliente con archivos: POST /clients (multipart/form-data)
+#    - Agregar archivos: POST /v1/files/clients/{id} (requiere JWT)
+#    - Eliminar archivo: DELETE /v1/files/clients/{id}/{fileKey} (requiere JWT)
+#    - Actualizar datos del cliente: PATCH /clients/{id} (JSON, sin archivos)
+#    - DELETE /clients/{id} elimina automáticamente los archivos asociados
+#    - Formato de archivos: {name, type, key, url}
+#    - Las URLs son públicas y permanentes
+#
+# 6. OBTENER ARCHIVOS DE UN CLIENTE:
+#    - GET /clients/{id} devuelve el campo "files" con el array de archivos
+#    - Cada archivo tiene un "key" que se usa para eliminarlo
+#    - Ejemplo de key: "clients/1-abc123-def456.pdf"
+#
+# 7. CÓMO ENVIAR ARCHIVOS EN POSTMAN:
+#    - Body → multipart/form-data
+#    - Para cada campo de texto: Key = "nombre", Type = Text, Value = "valor"
+#    - Para cada archivo: Key = "files", Type = File, Value = (seleccionar archivo)
+#    - Para enviar múltiples archivos: repetir el campo "files" por cada archivo
+#    - Si no envías archivos: simplemente no agregues campos tipo File
+#    - Los campos de texto (name, email, etc.) siempre son tipo Text
+#
+# 8. ESTRUCTURA DE CARPETAS EN R2:
+#    - Clientes: clients/{entityId}-{uuid}.{ext}
+#    - Test: test/{uuid}.{ext}
+#
+# 9. FLUJO TÍPICO DE ARCHIVOS:
+#    1. Crear cliente: POST /clients (puede incluir archivos iniciales)
+#    2. Obtener cliente: GET /clients/{id} → ver campo "files"
+#    3. Agregar archivo: POST /v1/files/clients/{id} → cliente actualizado
+#    4. Eliminar archivo: DELETE /v1/files/clients/{id}/{fileKey} → cliente actualizado
+#    5. Actualizar datos: PATCH /clients/{id} (solo campos de texto)
+#
+# 10. EJEMPLO PASO A PASO EN POSTMAN (Subir archivo a cliente existente):
+#    1. Method: POST
+#    2. URL: http://localhost:7071/api/v1/files/clients/1
+#    3. Headers: Authorization: Bearer {{token}}
+#    4. Body → seleccionar "form-data"
+#    5. Agregar fila:
+#       - Key: files | Type: File | Value: (seleccionar documento.pdf)
+#    6. Enviar
+#    7. La respuesta muestra el cliente actualizado con el nuevo archivo

@@ -24,7 +24,10 @@ function parseMultipartData(req: HttpRequest): Promise<ParsedMultipartData> {
       return;
     }
 
-    const busboy = Busboy({ headers: { 'content-type': contentType } });
+    const busboy = Busboy({
+      headers: { 'content-type': contentType },
+      limits: { fileSize: 10 * 1024 * 1024, files: 5, fields: 10, fieldSize: 1024 },
+    });
 
     busboy.on('field', (name: string, value: string) => {
       fields[name] = value;
@@ -44,6 +47,10 @@ function parseMultipartData(req: HttpRequest): Promise<ParsedMultipartData> {
           name: info.filename,
           type: info.mimeType,
         });
+      });
+
+      file.on('error', (err: Error) => {
+        reject(err);
       });
     });
 

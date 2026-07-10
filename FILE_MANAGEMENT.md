@@ -75,6 +75,41 @@ Authorization: Bearer {token}
 
 ---
 
+## Límites y Timeouts de Upload
+
+### Límites de Busboy (parseo multipart)
+
+| Endpoint | Tamaño máximo por archivo | Máximo de archivos | Campos |
+|----------|--------------------------|-------------------|--------|
+| `POST /v1/files/{folder}/{entityId}` | 50 MB | 10 | 5 campos, 1KB c/u |
+| `POST /v1/clients` (crear cliente) | 10 MB | 5 | 10 campos, 1KB c/u |
+
+Si se excede el límite, Busboy emite un error y se retorna HTTP 400.
+
+### Timeout de Cloudflare R2
+
+| Configuración | Valor | Descripción |
+|---------------|-------|-------------|
+| `requestTimeout` | 30 segundos | Tiempo máximo para completar una operación S3 |
+| `connectTimeout` | 5 segundos | Tiempo máximo para establecer conexión TCP |
+
+Si R2 no responde en este tiempo, la operación falla con error de timeout.
+
+### Protección del Logger
+
+El `loggerMiddleware` detecta automáticamente cuando `req.body` es un `Buffer` (archivos binarios) y **no lo serializa completo**. Solo loguea el tamaño en bytes. Esto previene que la función se bloquee intentando loguear archivos grandes.
+
+### Manejo de Errores en Streams
+
+Los handlers de Busboy incluyen `file.on('error')` para manejar correctamente:
+- Desconexión del cliente a mitad de upload
+- Errores de parseo del stream
+- Truncamiento del body
+
+Esto asegura que la Promise siempre se resuelva (con resolve o reject) y la función no cuelgue.
+
+---
+
 ## Variables de Entorno
 
 ```env

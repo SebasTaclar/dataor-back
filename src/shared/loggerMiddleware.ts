@@ -24,8 +24,14 @@ export const withLogger = (handler: HandlerWithLogger) => {
       url: req.url,
       query: req.query,
       headers: sanitizeHeaders(req.headers),
-      body: sanitizeBody(req.body),
-      bodySize: req.body ? JSON.stringify(req.body).length : 0,
+      body: Buffer.isBuffer(req.body)
+        ? `[Binary data, ${req.body.length} bytes]`
+        : sanitizeBody(req.body),
+      bodySize: Buffer.isBuffer(req.body)
+        ? req.body.length
+        : req.body
+          ? JSON.stringify(req.body).length
+          : 0,
       timestamp: new Date().toISOString(),
     });
 

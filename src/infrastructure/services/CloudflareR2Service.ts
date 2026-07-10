@@ -1,5 +1,6 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { NodeHttpHandler } from '@smithy/node-http-handler';
 import { IR2DataSource, PresignedUploadResult } from '../../domain/interfaces/IR2DataSource';
 import { Logger } from '../../shared/Logger';
 
@@ -23,6 +24,11 @@ export class CloudflareR2Service implements IR2DataSource {
         accessKeyId,
         secretAccessKey,
       },
+      requestHandler: new NodeHttpHandler({
+        requestTimeout: 30000,
+        connectionTimeout: 5000,
+        throwOnRequestTimeout: true,
+      }),
     });
   }
 

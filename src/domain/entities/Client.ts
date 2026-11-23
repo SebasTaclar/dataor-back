@@ -17,6 +17,8 @@ export type Client = {
   hasPaid: boolean;
   monthlyAmount?: number;
   paymentDayMonth?: number;
+  billingMonths?: number;
+  lastPaymentDate?: Date | null;
   files?: ClientFile[] | null;
   createdAt?: Date;
   updatedAt?: Date;

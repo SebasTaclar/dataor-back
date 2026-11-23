@@ -39,15 +39,36 @@ export class PendingBalanceReminderService {
     const shouldSendReminderToday = (today - 1) % reminderIntervalDays === 0;
 
     this.logger.logInfo('Resetting hasPaid for clients whose payment day is today', { today });
-    await this.prisma.client.updateMany({
+
+    const clientsToReset = await this.prisma.client.findMany({
       where: {
         isActive: true,
         paymentDayMonth: today,
       },
-      data: {
-        hasPaid: false,
-      },
     });
+
+    for (const client of clientsToReset) {
+      const monthlyAmount = client.monthlyAmount ? Number(client.monthlyAmount) : 0;
+      if (monthlyAmount <= 0) {
+        continue;
+      }
+
+      const billingMonths = client.billingMonths && client.billingMonths > 0 ? client.billingMonths : 1;
+      const anchor = client.lastPaymentDate || client.createdAt;
+      const anchorColombia = new Date(anchor.getTime() + colombiaOffset * 60 * 1000);
+      const monthDiff =
+        (colombiaTime.getFullYear() - anchorColombia.getFullYear()) * 12 +
+        (colombiaTime.getMonth() - anchorColombia.getMonth());
+
+      if (monthDiff < 0 || monthDiff % billingMonths !== 0) {
+        continue;
+      }
+
+      await this.prisma.client.update({
+        where: { id: client.id },
+        data: { hasPaid: false },
+      });
+    }
 
     if (!shouldSendReminderToday) {
       this.logger.logInfo('Today is not a reminder day, skipping reminder run', {
@@ -81,6 +102,12 @@ export class PendingBalanceReminderService {
     const clientEmails: Array<{ email: string; name?: string }> = [];
 
     for (const client of clients) {
+      const monthlyAmount = client.monthlyAmount ? Number(client.monthlyAmount) : 0;
+      if (monthlyAmount <= 0) {
+        skipped++;
+        continue;
+      }
+
       const paymentDay = client.paymentDayMonth as number | null;
       if (!paymentDay || paymentDay >= today) {
         skipped++;

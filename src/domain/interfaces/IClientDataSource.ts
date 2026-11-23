@@ -16,6 +16,8 @@ export interface IClientDataSource {
     hasPaid?: boolean;
     monthlyAmount?: number | null;
     paymentDayMonth?: number | null;
+    billingMonths?: number | null;
+    lastPaymentDate?: Date | null;
     files?: unknown;
   }): Promise<Client>;
   update(
@@ -31,6 +33,8 @@ export interface IClientDataSource {
       hasPaid?: boolean;
       monthlyAmount?: number | null;
       paymentDayMonth?: number | null;
+      billingMonths?: number | null;
+      lastPaymentDate?: Date | null;
     }
   ): Promise<Client>;
   updateFiles(id: number, files: StoredFile[]): Promise<void>;

@@ -181,9 +181,10 @@ const funcClients = async (
       notes,
       isActive,
       hasPaid,
-      monthlyAmount,
-      paymentDayMonth,
-    } = fields;
+       monthlyAmount,
+       paymentDayMonth,
+       billingMonths,
+     } = fields;
 
     // Validation
     const errors: string[] = [];
@@ -205,9 +206,10 @@ const funcClients = async (
       notes: notes || undefined,
       isActive: isActive !== undefined ? Boolean(isActive) : undefined,
       hasPaid: hasPaid !== undefined ? Boolean(hasPaid) : undefined,
-      monthlyAmount: monthlyAmount !== undefined ? Number(monthlyAmount) : null,
-      paymentDayMonth: paymentDayMonth !== undefined ? Number(paymentDayMonth) : null,
-    };
+       monthlyAmount: monthlyAmount !== undefined ? Number(monthlyAmount) : null,
+       paymentDayMonth: paymentDayMonth !== undefined ? Number(paymentDayMonth) : null,
+       billingMonths: billingMonths !== undefined ? Number(billingMonths) : undefined,
+     };
 
     const client = await clientService.createClient(clientRequest, files.length > 0 ? files : undefined);
 
@@ -239,9 +241,10 @@ const funcClients = async (
       notes: body.notes as string | undefined,
       isActive: body.isActive !== undefined ? Boolean(body.isActive) : undefined,
       hasPaid: body.hasPaid !== undefined ? Boolean(body.hasPaid) : undefined,
-      monthlyAmount: body.monthlyAmount !== undefined ? Number(body.monthlyAmount) : undefined,
-      paymentDayMonth: body.paymentDayMonth !== undefined ? Number(body.paymentDayMonth) : undefined,
-    };
+       monthlyAmount: body.monthlyAmount !== undefined ? Number(body.monthlyAmount) : undefined,
+       paymentDayMonth: body.paymentDayMonth !== undefined ? Number(body.paymentDayMonth) : undefined,
+       billingMonths: body.billingMonths !== undefined ? Number(body.billingMonths) : undefined,
+     };
 
     const client = await clientService.updateClient(id, updateRequest);
 

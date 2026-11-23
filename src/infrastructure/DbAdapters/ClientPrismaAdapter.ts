@@ -49,6 +49,8 @@ export class ClientPrismaAdapter implements IClientDataSource {
     hasPaid?: boolean;
     monthlyAmount?: number | null;
     paymentDayMonth?: number | null;
+    billingMonths?: number | null;
+    lastPaymentDate?: Date | null;
     files?: unknown;
   }): Promise<Client> {
     return await this.prisma.client.create({
@@ -63,6 +65,8 @@ export class ClientPrismaAdapter implements IClientDataSource {
         hasPaid: data.hasPaid ?? false,
         monthlyAmount: data.monthlyAmount || null,
         paymentDayMonth: data.paymentDayMonth || null,
+        billingMonths: data.billingMonths ?? 1,
+        lastPaymentDate: data.lastPaymentDate ?? (data.hasPaid ? new Date() : null),
         files: (data.files as Prisma.InputJsonValue) || null,
       },
     });
@@ -81,6 +85,8 @@ export class ClientPrismaAdapter implements IClientDataSource {
       hasPaid?: boolean;
       monthlyAmount?: number | null;
       paymentDayMonth?: number | null;
+      billingMonths?: number | null;
+      lastPaymentDate?: Date | null;
     }
   ): Promise<Client> {
     return await this.prisma.client.update({

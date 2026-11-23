@@ -159,6 +159,7 @@ companyName: Tech Corp
 notes: Cliente con archivos
 monthlyAmount: 60000
 paymentDayMonth: 10
+billingMonths: 1
 files: file:///C:/path/to/documento.pdf
 files: file:///C:/path/to/foto.jpg
 
@@ -175,6 +176,21 @@ Content-Type: application/json
   "companyName": "Tech Solutions"
 }
 
+### POST - Crear cliente cuyo cobro se gestiona desde otro cliente (monthlyAmount 0, no vence)
+POST {{baseUrl}}/clients
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Cliente Cobrado Por Otro",
+  "email": "cobradoporotro@example.com",
+  "phone": "+57 300 000 0000",
+  "country": "Colombia",
+  "monthlyAmount": 0,
+  "paymentDayMonth": 10,
+  "billingMonths": 1
+}
+
 ### PATCH - Actualizar cliente (requiere JWT)
 PATCH {{baseUrl}}/clients/1
 Authorization: Bearer {{token}}
@@ -184,7 +200,8 @@ Content-Type: application/json
   "name": "Juan García Updated",
   "phone": "+57 300 999 8888",
   "companyName": "New Company",
-  "monthlyAmount": 75000.00
+  "monthlyAmount": 75000.00,
+  "billingMonths": 2
 }
 
 ### DELETE - Eliminar cliente (requiere JWT)

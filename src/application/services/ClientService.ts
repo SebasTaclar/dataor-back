@@ -18,6 +18,7 @@ export interface ClientRequest {
   hasPaid?: boolean;
   monthlyAmount?: number | null;
   paymentDayMonth?: number | null;
+  billingMonths?: number | null;
   files?: ClientFile[];
 }
 
@@ -33,6 +34,8 @@ export interface ClientResponse {
   hasPaid: boolean;
   monthlyAmount?: Decimal | number | null;
   paymentDayMonth?: number | null;
+  billingMonths?: number | null;
+  lastPaymentDate?: Date | null;
   files?: ClientFile[] | null;
   createdAt: Date;
   updatedAt: Date;
@@ -49,6 +52,7 @@ export interface UpdateClientRequest {
   hasPaid?: boolean;
   monthlyAmount?: number | null;
   paymentDayMonth?: number | null;
+  billingMonths?: number | null;
 }
 
 function toClientResponse(client: Client): ClientResponse {
@@ -64,6 +68,8 @@ function toClientResponse(client: Client): ClientResponse {
     hasPaid: client.hasPaid,
     monthlyAmount: client.monthlyAmount,
     paymentDayMonth: client.paymentDayMonth,
+    billingMonths: client.billingMonths,
+    lastPaymentDate: client.lastPaymentDate,
     files: (client.files as ClientFile[]) || null,
     createdAt: client.createdAt,
     updatedAt: client.updatedAt,
@@ -170,8 +176,14 @@ export class ClientService {
       }
     }
 
-    await this.clientDataSource.update(id, data);
-
+    const updateData: UpdateClientRequest & { lastPaymentDate?: Date | null } = { ...data };
+ 
+    if (data.hasPaid === true && existingClient.hasPaid === false) {
+      updateData.lastPaymentDate = new Date();
+    }
+ 
+    await this.clientDataSource.update(id, updateData);
+ 
     this.logger.info(`Client ${id} updated successfully`);
     return this.getClientById(id);
   }

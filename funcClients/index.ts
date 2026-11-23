@@ -184,6 +184,7 @@ const funcClients = async (
        monthlyAmount,
        paymentDayMonth,
        billingMonths,
+       lastPaymentDate,
      } = fields;
 
     // Validation
@@ -209,6 +210,16 @@ const funcClients = async (
        monthlyAmount: monthlyAmount !== undefined ? Number(monthlyAmount) : null,
        paymentDayMonth: paymentDayMonth !== undefined ? Number(paymentDayMonth) : null,
        billingMonths: billingMonths !== undefined ? Number(billingMonths) : undefined,
+       lastPaymentDate:
+         lastPaymentDate === undefined
+           ? undefined
+           : lastPaymentDate === ''
+             ? null
+             : new Date(
+                 /^\d{4}-\d{2}-\d{2}$/.test(lastPaymentDate)
+                   ? `${lastPaymentDate}T00:00:00-05:00`
+                   : lastPaymentDate,
+               ),
      };
 
     const client = await clientService.createClient(clientRequest, files.length > 0 ? files : undefined);
@@ -244,6 +255,16 @@ const funcClients = async (
        monthlyAmount: body.monthlyAmount !== undefined ? Number(body.monthlyAmount) : undefined,
        paymentDayMonth: body.paymentDayMonth !== undefined ? Number(body.paymentDayMonth) : undefined,
        billingMonths: body.billingMonths !== undefined ? Number(body.billingMonths) : undefined,
+       lastPaymentDate:
+         body.lastPaymentDate !== undefined
+           ? body.lastPaymentDate
+             ? new Date(
+                 /^\d{4}-\d{2}-\d{2}$/.test(body.lastPaymentDate as string)
+                   ? `${body.lastPaymentDate}T00:00:00-05:00`
+                   : (body.lastPaymentDate as string),
+               )
+             : null
+           : undefined,
      };
 
     const client = await clientService.updateClient(id, updateRequest);

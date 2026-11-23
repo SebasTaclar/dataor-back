@@ -19,6 +19,7 @@ export interface ClientRequest {
   monthlyAmount?: number | null;
   paymentDayMonth?: number | null;
   billingMonths?: number | null;
+  lastPaymentDate?: Date | null;
   files?: ClientFile[];
 }
 
@@ -53,6 +54,7 @@ export interface UpdateClientRequest {
   monthlyAmount?: number | null;
   paymentDayMonth?: number | null;
   billingMonths?: number | null;
+  lastPaymentDate?: Date | null;
 }
 
 function toClientResponse(client: Client): ClientResponse {
